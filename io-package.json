@@ -43,22 +43,15 @@
 			"uk": "mitsubishi-local-control",
 			"zh-cn": "三菱本地控制"
 		},
-		"authors": [
-			"Black-Thunder <glwars@aol.de>"
-		],
-		"keywords": [
-			"template",
-			"automation",
-			"IoT",
-			"integration"
-		],
+		"authors": ["Black-Thunder <glwars@aol.de>"],
+		"keywords": ["template", "automation", "IoT", "integration"],
 		"licenseInformation": {
 			"type": "free",
 			"license": "MIT"
 		},
 		"platform": "Javascript/Node.js",
 		"icon": "mitsubishi-local-control.png",
-		"enabled": true,
+		"enabled": false,
 		"extIcon": "https://raw.githubusercontent.com/Black-Thunder/ioBroker.mitsubishi-local-control/main/admin/mitsubishi-local-control.png",
 		"readme": "https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/blob/main/README.md",
 		"loglevel": "info",

@@ -46,7 +46,7 @@ class MitsubishiLocalControl extends utils.Adapter {
       this.log.error("Invalid configuration detected. Stopping adapter.");
       return;
     }
-    this.log.info(`Configuring ${this.config.devices.length} devices...`);
+    this.log.info(`Configuring ${this.config.devices.length} device(s)...`);
     this.devices = ((_a = this.config.devices) != null ? _a : []).map((c) => ({
       ...c,
       controller: import_mitsubishiController.MitsubishiController.create(c.ip, this.log)
@@ -122,25 +122,42 @@ class MitsubishiLocalControl extends utils.Adapter {
   }
   validateConfig() {
     this.log.debug("Checking adapter settings...");
-    if (this.config.pollingInterval < 15) {
+    if (!this.config.pollingInterval || this.config.pollingInterval < 15) {
       this.config.pollingInterval = 15;
       this.log.warn("Polling interval can't be set lower than 15 seconds. Now set to 15 seconds.");
     }
-    if (!this.config.devices || !Array.isArray(this.config.devices)) {
+    const devices = this.config.devices;
+    if (!devices || !Array.isArray(devices)) {
       this.log.error("No valid devices configured. Please add at least one device.");
       return false;
     }
-    const invalidDevices = this.config.devices.filter((c) => !c.name || !c.ip || !c.name.trim() || !c.ip.trim());
-    if (invalidDevices.length > 0) {
-      this.config.devices = this.config.devices.filter((c) => c.name && c.ip);
-      if (this.config.devices.length === 0) {
-        this.log.error("No valid devices configured. Please add at least one device.");
-        return false;
-      } else {
-        this.log.warn("Some device entries are empty and will be ignored.");
-      }
-    } else {
+    const cleanedDevices = devices.filter((d) => {
+      var _a, _b;
+      return ((_a = d == null ? void 0 : d.name) == null ? void 0 : _a.trim()) && ((_b = d == null ? void 0 : d.ip) == null ? void 0 : _b.trim()) && this.isValidIPv4(d.ip.trim());
+    });
+    if (cleanedDevices.length !== devices.length) {
+      this.log.warn("Some device entries were invalid and have been removed.");
+    }
+    this.config.devices = cleanedDevices;
+    if (this.config.devices.length === 0) {
       this.log.error("No valid devices configured. Please add at least one device.");
+      return false;
+    }
+    return true;
+  }
+  isValidIPv4(ip) {
+    const parts = ip.split(".");
+    if (parts.length !== 4) {
+      return false;
+    }
+    for (const part of parts) {
+      if (!/^\d{1,3}$/.test(part)) {
+        return false;
+      }
+      const num = Number(part);
+      if (num < 0 || num > 255) {
+        return false;
+      }
     }
     return true;
   }

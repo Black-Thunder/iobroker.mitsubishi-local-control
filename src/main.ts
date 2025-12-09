@@ -47,7 +47,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 			return;
 		}
 
-		this.log.info(`Configuring ${this.config.devices.length} devices...`);
+		this.log.info(`Configuring ${this.config.devices.length} device(s)...`);
 
 		this.devices = (this.config.devices ?? []).map(c => ({
 			...c,
@@ -137,31 +137,55 @@ class MitsubishiLocalControl extends utils.Adapter {
 	private validateConfig(): boolean {
 		this.log.debug("Checking adapter settings...");
 
-		// Check polling interval
-		if (this.config.pollingInterval < 15) {
+		// --- Validate polling interval ---
+		if (!this.config.pollingInterval || this.config.pollingInterval < 15) {
 			this.config.pollingInterval = 15;
 			this.log.warn("Polling interval can't be set lower than 15 seconds. Now set to 15 seconds.");
 		}
 
-		// Check for valid devices
-		if (!this.config.devices || !Array.isArray(this.config.devices)) {
+		// --- Validate devices array existence ---
+		const devices = this.config.devices;
+		if (!devices || !Array.isArray(devices)) {
 			this.log.error("No valid devices configured. Please add at least one device.");
 			return false;
 		}
 
-		const invalidDevices = this.config.devices.filter(c => !c.name || !c.ip || !c.name.trim() || !c.ip.trim());
+		// --- Filter invalid devices ---
+		const cleanedDevices = devices.filter(d => d?.name?.trim() && d?.ip?.trim() && this.isValidIPv4(d.ip.trim()));
 
-		if (invalidDevices.length > 0) {
-			// Leere Einträge entfernen
-			this.config.devices = this.config.devices.filter(c => c.name && c.ip);
+		if (cleanedDevices.length !== devices.length) {
+			this.log.warn("Some device entries were invalid and have been removed.");
+		}
 
-			if (this.config.devices.length === 0) {
-				this.log.error("No valid devices configured. Please add at least one device.");
+		// Update config
+		this.config.devices = cleanedDevices;
+
+		// --- Check if at least one valid device remains ---
+		if (this.config.devices.length === 0) {
+			this.log.error("No valid devices configured. Please add at least one device.");
+			return false;
+		}
+
+		return true;
+	}
+
+	private isValidIPv4(ip: string): boolean {
+		// Basic structural check (4 octets, only digits)
+		const parts = ip.split(".");
+		if (parts.length !== 4) {
+			return false;
+		}
+
+		for (const part of parts) {
+			// Reject empty, non-numeric or leading zeros like "01"
+			if (!/^\d{1,3}$/.test(part)) {
 				return false;
 			}
-			this.log.warn("Some device entries are empty and will be ignored.");
-		} else {
-			this.log.error("No valid devices configured. Please add at least one device.");
+
+			const num = Number(part);
+			if (num < 0 || num > 255) {
+				return false;
+			}
 		}
 
 		return true;

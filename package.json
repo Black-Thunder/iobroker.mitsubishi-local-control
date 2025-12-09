@@ -66,6 +66,7 @@
     "check": "tsc --noEmit",
     "coverage": "nyc npm run test:ts",
     "lint": "eslint -c eslint.config.mjs .",
+	"lint:fix": "eslint -c eslint.config.mjs . --fix",
     "translate": "translate-adapter",
     "release": "release-script",
     "dev-server": "dev-server"
