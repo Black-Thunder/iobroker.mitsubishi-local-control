@@ -47,13 +47,7 @@ class MitsubishiChangeSet {
     this.changes |= import_types.Controls.PowerOnOff;
   }
   setMode(driveMode) {
-    let modeValue;
-    if (driveMode === import_types.DriveMode.AUTO) {
-      modeValue = 8;
-    } else {
-      modeValue = driveMode;
-    }
-    this.desiredState.driveMode = modeValue;
+    this.desiredState.driveMode = driveMode;
     this.changes |= import_types.Controls.DriveMode;
   }
   setTemperature(temperature) {

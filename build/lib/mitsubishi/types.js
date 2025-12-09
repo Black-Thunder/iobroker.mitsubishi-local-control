@@ -46,11 +46,11 @@ var PowerOnOff = /* @__PURE__ */ ((PowerOnOff2) => {
   return PowerOnOff2;
 })(PowerOnOff || {});
 var DriveMode = /* @__PURE__ */ ((DriveMode2) => {
-  DriveMode2[DriveMode2["AUTO"] = 0] = "AUTO";
-  DriveMode2[DriveMode2["HEATER"] = 1] = "HEATER";
-  DriveMode2[DriveMode2["DEHUM"] = 2] = "DEHUM";
-  DriveMode2[DriveMode2["COOLER"] = 3] = "COOLER";
-  DriveMode2[DriveMode2["FAN"] = 7] = "FAN";
+  DriveMode2[DriveMode2["HEAT"] = 1] = "HEAT";
+  DriveMode2[DriveMode2["DRY"] = 2] = "DRY";
+  DriveMode2[DriveMode2["COOL"] = 3] = "COOL";
+  DriveMode2[DriveMode2["VENT"] = 7] = "VENT";
+  DriveMode2[DriveMode2["AUTO"] = 8] = "AUTO";
   return DriveMode2;
 })(DriveMode || {});
 var WindSpeed = /* @__PURE__ */ ((WindSpeed2) => {
@@ -224,7 +224,7 @@ class AutoStates {
 }
 class GeneralStates {
   powerOnOff = 0 /* OFF */;
-  driveMode = 0 /* AUTO */;
+  driveMode = 8 /* AUTO */;
   coarseTemperature = 22;
   fineTemperature = 22;
   windSpeed = 0 /* AUTO */;

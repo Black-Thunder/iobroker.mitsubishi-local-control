@@ -10,11 +10,11 @@ export enum PowerOnOff {
 }
 
 export enum DriveMode {
-	AUTO = 0,
-	HEATER = 1,
-	DEHUM = 2,
-	COOLER = 3,
-	FAN = 7,
+	HEAT = 1,
+	DRY = 2,
+	COOL = 3,
+	VENT = 7,
+	AUTO = 8,
 }
 
 export enum WindSpeed {

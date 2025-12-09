@@ -2,8 +2,8 @@ import { Buffer } from "buffer";
 import { XMLParser } from "fast-xml-parser";
 
 import { MitsubishiAPI } from "./mitsubishiApi";
-import type { HorizontalWindDirection, VerticalWindDirection, WindSpeed } from "./types";
-import { Controls, Controls08, DriveMode, GeneralStates, ParsedDeviceState, PowerOnOff } from "./types";
+import type { HorizontalWindDirection, VerticalWindDirection, WindSpeed, DriveMode } from "./types";
+import { Controls, Controls08, GeneralStates, ParsedDeviceState, PowerOnOff } from "./types";
 
 const xmlParser = new XMLParser({
 	ignoreAttributes: false,
@@ -31,15 +31,7 @@ export class MitsubishiChangeSet {
 	}
 
 	setMode(driveMode: DriveMode): void {
-		let modeValue: number;
-
-		if (driveMode === DriveMode.AUTO) {
-			modeValue = 8;
-		} else {
-			modeValue = driveMode as number;
-		}
-
-		this.desiredState.driveMode = modeValue;
+		this.desiredState.driveMode = driveMode as number;
 		this.changes |= Controls.DriveMode;
 	}
 
