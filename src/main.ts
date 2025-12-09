@@ -158,9 +158,8 @@ class MitsubishiLocalControl extends utils.Adapter {
 			if (this.config.devices.length === 0) {
 				this.log.error("No valid devices configured. Please add at least one device.");
 				return false;
-			} else {
-				this.log.warn("Some device entries are empty and will be ignored.");
 			}
+			this.log.warn("Some device entries are empty and will be ignored.");
 		} else {
 			this.log.error("No valid devices configured. Please add at least one device.");
 		}
