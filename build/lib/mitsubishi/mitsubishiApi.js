@@ -39,19 +39,17 @@ class MitsubishiAPI {
   log;
   deviceHostPort;
   encryptionKey;
-  adminUsername;
-  adminPassword;
   http;
-  constructor(deviceHostPort, log, encryptionKey = import_types.STATIC_KEY, adminUsername = "admin", adminPassword = "me1debug@0567") {
+  constructor(deviceHostPort, log, encryptionKey = import_types.STATIC_KEY) {
     this.deviceHostPort = deviceHostPort;
     this.log = log;
-    if (typeof encryptionKey === "string") encryptionKey = Buffer.from(encryptionKey, "utf8");
+    if (typeof encryptionKey === "string") {
+      encryptionKey = Buffer.from(encryptionKey, "utf8");
+    }
     if (encryptionKey.length < import_types.KEY_SIZE) {
       encryptionKey = Buffer.concat([encryptionKey, Buffer.alloc(import_types.KEY_SIZE - encryptionKey.length, 0)]);
     }
     this.encryptionKey = encryptionKey.subarray(0, import_types.KEY_SIZE);
-    this.adminUsername = adminUsername;
-    this.adminPassword = adminPassword;
     this.http = import_axios.default.create({
       timeout: 2e3,
       headers: {
@@ -72,7 +70,9 @@ class MitsubishiAPI {
    * Returns base64(iv + ciphertext)
    */
   encryptPayload(payload, iv) {
-    if (!iv) iv = crypto.randomBytes(import_types.KEY_SIZE);
+    if (!iv) {
+      iv = crypto.randomBytes(import_types.KEY_SIZE);
+    }
     const cipher = crypto.createCipheriv("aes-128-cbc", this.encryptionKey, iv);
     cipher.setAutoPadding(false);
     const payloadBytes = Buffer.from(payload, "utf8");
@@ -100,16 +100,18 @@ class MitsubishiAPI {
     }
     let decrypted_clean;
     try {
-      decrypted_clean = (0, import_utils.unpadIso7816)(decrypted, import_types.KEY_SIZE);
-    } catch (e) {
+      decrypted_clean = (0, import_utils.unpadIso7816)(decrypted);
+    } catch {
       let end = decrypted.length;
-      while (end > 0 && decrypted[end - 1] === 0) end--;
+      while (end > 0 && decrypted[end - 1] === 0) {
+        end--;
+      }
       decrypted_clean = decrypted.subarray(0, end);
     }
     try {
       const result = decrypted_clean.toString("utf8");
       return result;
-    } catch (ude) {
+    } catch {
     }
     const xml_end_patterns = [Buffer.from("</LSV>"), Buffer.from("</CSV>"), Buffer.from("</ESV>")];
     for (const pattern of xml_end_patterns) {
@@ -162,9 +164,8 @@ class MitsubishiAPI {
           }
           const decrypted = this.decryptPayload(encrypted_response);
           return decrypted;
-        } else {
-          throw new Error("Could not find any text in response");
         }
+        throw new Error("Could not find any text in response");
       } catch (err) {
         lastErr = err;
         if (attempt < maxRetries) {
@@ -193,63 +194,6 @@ class MitsubishiAPI {
   sendHexCommand(hexCommand) {
     const payload = `<CSV><CONNECT>ON</CONNECT><CODE><VALUE>${hexCommand}</VALUE></CODE></CSV>`;
     return this.makeRequest(payload);
-  }
-  async getUnitInfo() {
-    const url = `http://${this.deviceHostPort}/unitinfo`;
-    const resp = await this.http.get(url, {
-      auth: {
-        username: this.adminUsername,
-        password: this.adminPassword
-      },
-      timeout: 2e3
-    });
-    return this.parseUnitInfoHtml(resp.data);
-  }
-  parseUnitInfoHtml(html) {
-    const unitInfo = {};
-    const titleRegex = /<div[^>]*class=["']titleA["'][^>]*>([^<]+)<\/div>/gi;
-    const dtDdRegex = /<dt>([^<]+)<\/dt>\s*<dd>([^<]+)<\/dd>/gi;
-    const sections = [];
-    let match;
-    while ((match = titleRegex.exec(html)) !== null) {
-      sections.push({ name: match[1].trim(), index: match.index });
-    }
-    if (sections.length === 0) {
-      unitInfo["Unit Info"] = {};
-      let m;
-      while ((m = dtDdRegex.exec(html)) !== null) {
-        unitInfo["Unit Info"][m[1].trim()] = m[2].trim();
-      }
-      return unitInfo;
-    }
-    for (let i = 0; i < sections.length; i++) {
-      const name = sections[i].name;
-      const start = sections[i].index;
-      const end = i + 1 < sections.length ? sections[i + 1].index : html.length;
-      const segment = html.slice(start, end);
-      unitInfo[name] = {};
-      let m;
-      while ((m = dtDdRegex.exec(segment)) !== null) {
-        unitInfo[name][m[1].trim()] = m[2].trim();
-      }
-    }
-    try {
-      if (unitInfo["Adaptor Information"] && unitInfo["Adaptor Information"]["Channel"]) {
-        unitInfo["Adaptor Information"]["Channel"] = String(
-          parseInt(unitInfo["Adaptor Information"]["Channel"], 10)
-        );
-      }
-    } catch {
-    }
-    try {
-      if (unitInfo["Adaptor Information"] && unitInfo["Adaptor Information"]["RSSI"]) {
-        unitInfo["Adaptor Information"]["RSSI"] = String(
-          parseFloat(unitInfo["Adaptor Information"]["RSSI"].replace("dBm", "").trim())
-        );
-      }
-    } catch {
-    }
-    return unitInfo;
   }
   close() {
     this.http = null;

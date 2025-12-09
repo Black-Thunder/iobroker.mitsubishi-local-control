@@ -1,5 +1,9 @@
 {
-	"mitsubishi-local-control adapter settings": "mitsubishi-local-control的适配器设置",
-	"option1": "选项1",
-	"option2": "选项2"
+	"Clients": "客户",
+	"Enter your desired polling interval (in seconds) here to query data from the devices": "在此输入您想要的轮询间隔（以秒为单位）以查询来自设备的数据",
+	"Friendly name of the device": "设备的友好名称",
+	"IP Address": "IP地址",
+	"IP address of the Mitsubishi device": "三菱设备的IP地址",
+	"Polling interval": "轮询间隔",
+	"mitsubishi-local-control adapter settings": "mitsubishi-local-control的适配器设置"
 }

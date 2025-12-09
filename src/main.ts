@@ -5,11 +5,11 @@ import * as utils from "@iobroker/adapter-core";
 import { getMacFromStateId } from "./lib/mitsubishi/utils";
 
 import { MitsubishiController } from "./lib/mitsubishi/mitsubishiController";
+import type { ParsedDeviceState } from "./lib/mitsubishi/types";
 import {
 	AutoMode,
 	DriveMode,
 	HorizontalWindDirection,
-	ParsedDeviceState,
 	PowerOnOff,
 	RemoteLock,
 	VerticalWindDirection,
@@ -50,9 +50,9 @@ class MitsubishiLocalControl extends utils.Adapter {
 		}));
 
 		try {
-			this.startPolling();
+			await this.startPolling();
 			await this.setAdapterConnectionState(true);
-		} catch (err) {
+		} catch (err: any) {
 			this.log.error(`Error while starting polling: ${err}`);
 			await this.setAdapterConnectionState(false);
 		}
@@ -79,7 +79,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 	 * @param id - State ID
 	 * @param state - State object
 	 */
-	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
+	private async onStateChange(id: string, state: ioBroker.State | null | undefined): Promise<void> {
 		if (state) {
 			// The state was changed
 			this.log.silly(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
@@ -104,9 +104,9 @@ class MitsubishiLocalControl extends utils.Adapter {
 
 				try {
 					if (id.endsWith("powerOnOff")) {
-						client.controller.setPower(state.val as boolean);
+						await client.controller.setPower(state.val as boolean);
 					}
-				} catch (err) {
+				} catch (err: any) {
 					this.log.error(`Error executing command for ${mac}: ${err}`);
 				}
 			}
@@ -118,58 +118,41 @@ class MitsubishiLocalControl extends utils.Adapter {
 
 	private async setAdapterConnectionState(isConnected: boolean): Promise<void> {
 		await this.setStateChangedAsync("info.connection", isConnected, true);
-		await this.setForeignState(`system.adapter.${this.namespace}.connected`, isConnected, true);
+		this.setForeignState(`system.adapter.${this.namespace}.connected`, isConnected, true);
 	}
 
 	private getClientByMac(mac: string): Client | undefined {
 		const noColMac = String(mac)
 			.toLowerCase()
 			.replace(/[^0-9a-f]/g, "");
-		if (noColMac.length !== 12) return undefined;
+		if (noColMac.length !== 12) {
+			return undefined;
+		}
 
 		const colMac = noColMac.match(/.{1,2}/g)!.join(":");
 
 		return this.clients.find(c => c.controller.parsedDeviceState?.mac === colMac);
 	}
 
-	private startPolling(): void {
-		let interval = this.config.pollingInterval * 1000;
+	private async startPolling(): Promise<void> {
+		const interval = this.config.pollingInterval * 1000;
 
 		for (const client of this.clients) {
-			const poll = async () => {
+			const poll = async (): Promise<void> => {
 				try {
 					this.log.debug(`Polling ${client.name} (${client.ip}) ...`);
 
 					const parsed = await client.controller.fetchStatus();
 
 					await this.updateDeviceStates(this, parsed, client.name);
-				} catch (err) {
+				} catch (err: any) {
 					this.log.error(`Polling error for ${client.name}: ${err}`);
 				} finally {
 					client.pollingJob = setTimeout(poll, interval);
 				}
-
-				/*if (this.isConnected) {
-				this.retryCounter = 0;
-				
-			} else {
-				if (this.retryCounter < maxRetries) {
-					this.retryCounter++;
-					this.adapter.log.warn(
-						`Connection to MELCloud lost - reconnecting (try ${this.retryCounter} of ${maxRetries})...`,
-					);
-					pollingJob = setTimeout(updateData, jobInterval);
-				} else {
-					this.retryCounter = 0;
-					this.adapter.log.error(
-						"Connection to MELCloud lost, polling temporarily disabled! Trying again in one hour.",
-					);
-					pollingJob = setTimeout(updateData, retryInterval);
-				}
-			}*/
 			};
 
-			poll();
+			await poll();
 			this.log.debug(`Started polling timer for device ${client.name}.`);
 		}
 	}
@@ -206,7 +189,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 	/**
 	 * Aktualisiert die ioBroker-Objekte für ein ParsedDeviceState
 	 */
-	async writeRecursive(adapter: MitsubishiLocalControl, parentId: string, obj: any) {
+	async writeRecursive(adapter: MitsubishiLocalControl, parentId: string, obj: any): Promise<void> {
 		for (const key of Object.keys(obj)) {
 			const value = obj[key];
 			const id = `${parentId}.${key}`;
@@ -224,10 +207,9 @@ class MitsubishiLocalControl extends utils.Adapter {
 
 			let type: ioBroker.CommonType = "string";
 			let role = "state";
-			let val: any = value;
 			let unit: string | undefined = undefined;
 			let states: Record<string, string> | undefined;
-			let write: boolean = false;
+			let write = false;
 
 			// Enum-Mapping
 			switch (key) {
@@ -339,11 +321,15 @@ class MitsubishiLocalControl extends utils.Adapter {
 			}
 
 			// State setzen
-			await adapter.setState(id, { val, ack: true });
+			await adapter.setState(id, { val: value, ack: true });
 		}
 	}
 
-	async updateDeviceStates(adapter: MitsubishiLocalControl, parsedState: ParsedDeviceState, clientName: string) {
+	async updateDeviceStates(
+		adapter: MitsubishiLocalControl,
+		parsedState: ParsedDeviceState,
+		clientName: string,
+	): Promise<void> {
 		const deviceId = `devices.${parsedState.mac.replace(/:/g, "")}`;
 
 		await adapter.setObjectNotExistsAsync(`${deviceId}`, {

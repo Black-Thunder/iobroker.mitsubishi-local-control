@@ -32,9 +32,11 @@ function padIso7816(input, blockSize = import_types.KEY_SIZE) {
   out[input.length] = 128;
   return out;
 }
-function unpadIso7816(padded, blockSize = import_types.KEY_SIZE) {
+function unpadIso7816(padded) {
   let i = padded.length - 1;
-  while (i >= 0 && padded[i] === 0) i--;
+  while (i >= 0 && padded[i] === 0) {
+    i--;
+  }
   if (i < 0 || padded[i] !== 128) {
     throw new Error("Invalid ISO7816 padding");
   }

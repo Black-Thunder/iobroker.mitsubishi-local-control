@@ -1,5 +1,9 @@
 {
 	"mitsubishi-local-control adapter settings": "Adapter settings for mitsubishi-local-control",
-	"option1": "option1",
-	"option2": "option2"
+	"Clients": "Clients",
+	"Friendly name of the device": "Friendly name of the device",
+	"IP Address": "IP Address",
+	"IP address of the Mitsubishi device": "IP address of the Mitsubishi device",
+	"Polling interval": "Polling interval",
+	"Enter your desired polling interval (in seconds) here to query data from the devices": "Enter your desired polling interval (in seconds) here to query data from the devices"
 }

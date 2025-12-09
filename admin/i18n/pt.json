@@ -1,5 +1,9 @@
 {
-	"mitsubishi-local-control adapter settings": "Configurações do adaptador para mitsubishi-local-control",
-	"option1": "opção1",
-	"option2": "opção2"
+	"Clients": "Clientes",
+	"Enter your desired polling interval (in seconds) here to query data from the devices": "Insira aqui o intervalo de pesquisa desejado (em segundos) para consultar dados dos dispositivos",
+	"Friendly name of the device": "Nome amigável do dispositivo",
+	"IP Address": "Endereço IP",
+	"IP address of the Mitsubishi device": "Endereço IP do dispositivo Mitsubishi",
+	"Polling interval": "Intervalo de votação",
+	"mitsubishi-local-control adapter settings": "Configurações do adaptador para mitsubishi-local-control"
 }

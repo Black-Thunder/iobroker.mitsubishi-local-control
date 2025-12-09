@@ -2,17 +2,8 @@ import { Buffer } from "buffer";
 import { XMLParser } from "fast-xml-parser";
 
 import { MitsubishiAPI } from "./mitsubishiApi";
-import {
-	Controls,
-	Controls08,
-	DriveMode,
-	GeneralStates,
-	HorizontalWindDirection,
-	ParsedDeviceState,
-	PowerOnOff,
-	VerticalWindDirection,
-	WindSpeed,
-} from "./types";
+import type { HorizontalWindDirection, VerticalWindDirection, WindSpeed } from "./types";
+import { Controls, Controls08, DriveMode, GeneralStates, ParsedDeviceState, PowerOnOff } from "./types";
 
 const xmlParser = new XMLParser({
 	ignoreAttributes: false,
@@ -99,7 +90,11 @@ export class MitsubishiController {
 		this.log = log;
 	}
 
-	public static create(deviceHostPort: string, log: ioBroker.Logger, encryptionKey?: string | Buffer) {
+	public static create(
+		deviceHostPort: string,
+		log: ioBroker.Logger,
+		encryptionKey?: string | Buffer,
+	): MitsubishiController {
 		const api = new MitsubishiAPI(deviceHostPort, log, encryptionKey);
 		return new MitsubishiController(api, log);
 	}
@@ -111,11 +106,11 @@ export class MitsubishiController {
 	async fetchStatus(): Promise<ParsedDeviceState> {
 		const resp = await this.api.sendStatusRequest();
 		this.parsedDeviceState = this.parsedDeviceState ?? new ParsedDeviceState();
-		const parsedResp = await this.parseStatusResponse(resp);
+		const parsedResp = this.parseStatusResponse(resp);
 		return parsedResp;
 	}
 
-	async parseStatusResponse(xml: string): Promise<ParsedDeviceState> {
+	parseStatusResponse(xml: string): ParsedDeviceState {
 		// Parse XML into JS object
 		const parsed = xmlParser.parse(xml);
 
@@ -125,8 +120,10 @@ export class MitsubishiController {
 		// ---- 1: Extract all CODE/VALUE entries ----
 		const codeValues: string[] = [];
 
-		function collectCodeValues(node: any) {
-			if (!node || typeof node !== "object") return;
+		function collectCodeValues(node: any): void {
+			if (!node || typeof node !== "object") {
+				return;
+			}
 			if (node.CODE?.VALUE) {
 				const v = node.CODE.VALUE;
 				if (Array.isArray(v)) {
@@ -137,7 +134,9 @@ export class MitsubishiController {
 			}
 			for (const key of Object.keys(node)) {
 				const value = node[key];
-				if (typeof value === "object") collectCodeValues(value);
+				if (typeof value === "object") {
+					collectCodeValues(value);
+				}
 			}
 		}
 
@@ -148,16 +147,23 @@ export class MitsubishiController {
 
 		// ---- 3: Extract MAC, SERIAL, RSSI and APP_VER ----
 		const mac = this.extractTag(rootObj, "MAC");
-		if (mac) this.parsedDeviceState.mac = mac;
+		if (mac) {
+			this.parsedDeviceState.mac = mac;
+		}
 
 		const serial = this.extractTag(rootObj, "SERIAL");
-		if (serial) this.parsedDeviceState.serial = serial;
+		if (serial) {
+			this.parsedDeviceState.serial = serial;
+		}
 
 		const rssi = this.extractTag(rootObj, "RSSI");
-		if (rssi) this.parsedDeviceState.rssi = rssi.toString();
-
+		if (rssi) {
+			this.parsedDeviceState.rssi = rssi.toString();
+		}
 		const appVer = this.extractTag(rootObj, "APP_VER");
-		if (appVer) this.parsedDeviceState.app_version = appVer.toString();
+		if (appVer) {
+			this.parsedDeviceState.app_version = appVer.toString();
+		}
 
 		// ---- 4: Extract PROFILECODE values (two possible locations like Python) ----
 		this.profile_code = [];
@@ -177,14 +183,16 @@ export class MitsubishiController {
 
 		this.parsedDeviceState.ip = this.api.getDeviceHostPort();
 
-		return this.parsedDeviceState!;
+		return this.parsedDeviceState;
 	}
 
 	/**
 	 * Helper: find a single tag with direct text content
 	 */
 	private extractTag(obj: any, tag: string): string | null {
-		if (!obj || typeof obj !== "object") return null;
+		if (!obj || typeof obj !== "object") {
+			return null;
+		}
 
 		if (obj[tag] && (typeof obj[tag] === "string" || typeof obj[tag] === "number")) {
 			return obj[tag].toString();
@@ -192,7 +200,9 @@ export class MitsubishiController {
 
 		for (const key of Object.keys(obj)) {
 			const res = this.extractTag(obj[key], tag);
-			if (res) return res;
+			if (res) {
+				return res;
+			}
 		}
 
 		return null;
@@ -204,8 +214,10 @@ export class MitsubishiController {
 	private extractTagList(obj: any, path: string[]): string[] {
 		const result: string[] = [];
 
-		function recursive(node: any, pathIndex: number) {
-			if (!node || typeof node !== "object") return;
+		function recursive(node: any, pathIndex: number): void {
+			if (!node || typeof node !== "object") {
+				return;
+			}
 
 			if (pathIndex === path.length) {
 				// final target
@@ -347,9 +359,5 @@ export class MitsubishiController {
 
 	async reboot(): Promise<string> {
 		return this.api.sendRebootRequest();
-	}
-
-	async getUnitInfo(): Promise<Record<string, Record<string, string>>> {
-		return this.api.getUnitInfo();
 	}
 }

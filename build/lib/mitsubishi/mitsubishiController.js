@@ -102,16 +102,18 @@ class MitsubishiController {
     var _a;
     const resp = await this.api.sendStatusRequest();
     this.parsedDeviceState = (_a = this.parsedDeviceState) != null ? _a : new import_types.ParsedDeviceState();
-    const parsedResp = await this.parseStatusResponse(resp);
+    const parsedResp = this.parseStatusResponse(resp);
     return parsedResp;
   }
-  async parseStatusResponse(xml) {
+  parseStatusResponse(xml) {
     const parsed = xmlParser.parse(xml);
     const rootObj = parsed.CSV || parsed.LSV || parsed.ESV || parsed;
     const codeValues = [];
     function collectCodeValues(node) {
       var _a;
-      if (!node || typeof node !== "object") return;
+      if (!node || typeof node !== "object") {
+        return;
+      }
       if ((_a = node.CODE) == null ? void 0 : _a.VALUE) {
         const v = node.CODE.VALUE;
         if (Array.isArray(v)) {
@@ -122,19 +124,29 @@ class MitsubishiController {
       }
       for (const key of Object.keys(node)) {
         const value = node[key];
-        if (typeof value === "object") collectCodeValues(value);
+        if (typeof value === "object") {
+          collectCodeValues(value);
+        }
       }
     }
     collectCodeValues(rootObj);
     this.parsedDeviceState = import_types.ParsedDeviceState.parseCodeValues(codeValues);
     const mac = this.extractTag(rootObj, "MAC");
-    if (mac) this.parsedDeviceState.mac = mac;
+    if (mac) {
+      this.parsedDeviceState.mac = mac;
+    }
     const serial = this.extractTag(rootObj, "SERIAL");
-    if (serial) this.parsedDeviceState.serial = serial;
+    if (serial) {
+      this.parsedDeviceState.serial = serial;
+    }
     const rssi = this.extractTag(rootObj, "RSSI");
-    if (rssi) this.parsedDeviceState.rssi = rssi.toString();
+    if (rssi) {
+      this.parsedDeviceState.rssi = rssi.toString();
+    }
     const appVer = this.extractTag(rootObj, "APP_VER");
-    if (appVer) this.parsedDeviceState.app_version = appVer.toString();
+    if (appVer) {
+      this.parsedDeviceState.app_version = appVer.toString();
+    }
     this.profile_code = [];
     const profiles1 = this.extractTagList(rootObj, ["PROFILECODE", "DATA", "VALUE"]);
     const profiles2 = this.extractTagList(rootObj, ["PROFILECODE", "VALUE"]);
@@ -152,13 +164,17 @@ class MitsubishiController {
    * Helper: find a single tag with direct text content
    */
   extractTag(obj, tag) {
-    if (!obj || typeof obj !== "object") return null;
+    if (!obj || typeof obj !== "object") {
+      return null;
+    }
     if (obj[tag] && (typeof obj[tag] === "string" || typeof obj[tag] === "number")) {
       return obj[tag].toString();
     }
     for (const key of Object.keys(obj)) {
       const res = this.extractTag(obj[key], tag);
-      if (res) return res;
+      if (res) {
+        return res;
+      }
     }
     return null;
   }
@@ -168,7 +184,9 @@ class MitsubishiController {
   extractTagList(obj, path) {
     const result = [];
     function recursive(node, pathIndex) {
-      if (!node || typeof node !== "object") return;
+      if (!node || typeof node !== "object") {
+        return;
+      }
       if (pathIndex === path.length) {
         if (typeof node === "string") {
           result.push(node);
@@ -283,9 +301,6 @@ class MitsubishiController {
   }
   async reboot() {
     return this.api.sendRebootRequest();
-  }
-  async getUnitInfo() {
-    return this.api.getUnitInfo();
   }
 }
 // Annotate the CommonJS export names for ESM import in node:

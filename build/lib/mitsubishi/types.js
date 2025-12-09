@@ -130,10 +130,16 @@ class SensorStates {
     return data.length >= 6 && (data[1] === 98 || data[1] === 123) && data[5] === 3;
   }
   static parseSensorStates(data) {
-    if (data[0] !== 252) throw new Error("Invalid sensor payload");
-    if (data[5] !== 3) throw new Error("Not sensor states");
+    if (data[0] !== 252) {
+      throw new Error("Invalid sensor payload");
+    }
+    if (data[5] !== 3) {
+      throw new Error("Not sensor states");
+    }
     const fcc = (0, import_utils.calcFcc)(data.subarray(1, -1));
-    if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+    if (fcc !== data[data.length - 1]) {
+      throw new Error("Invalid checksum");
+    }
     const obj = new SensorStates();
     obj.insideTemperature1Coarse = 10 + data[8];
     obj.outsideTemperature = (data[10] - 128) * 0.5;
@@ -152,10 +158,16 @@ class ErrorStates {
     return data.length >= 6 && (data[1] === 98 || data[1] === 123) && data[5] === 4;
   }
   static parseErrorStates(data) {
-    if (data[0] !== 252) throw new Error("Invalid error payload");
-    if (data[5] !== 4) throw new Error("Not error states");
+    if (data[0] !== 252) {
+      throw new Error("Invalid error payload");
+    }
+    if (data[5] !== 4) {
+      throw new Error("Not error states");
+    }
     const fcc = (0, import_utils.calcFcc)(data.subarray(1, -1));
-    if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+    if (fcc !== data[data.length - 1]) {
+      throw new Error("Invalid checksum");
+    }
     const obj = new ErrorStates();
     obj.errorCode = data.readUInt16BE(9);
     return obj;
@@ -168,11 +180,17 @@ class EnergyStates {
   static isEnergyStatesPayload(data) {
     return data.length >= 6 && (data[1] === 98 || data[1] === 123) && data[5] === 6;
   }
-  static parseEnergyStates(data, generalStates) {
-    if (data[0] !== 252) throw new Error("Invalid energy payload");
-    if (data[5] !== 6) throw new Error("Not energy states");
+  static parseEnergyStates(data) {
+    if (data[0] !== 252) {
+      throw new Error("Invalid energy payload");
+    }
+    if (data[5] !== 6) {
+      throw new Error("Not energy states");
+    }
     const fcc = (0, import_utils.calcFcc)(data.subarray(1, -1));
-    if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+    if (fcc !== data[data.length - 1]) {
+      throw new Error("Invalid checksum");
+    }
     const obj = new EnergyStates();
     obj.operating = data[9] !== 0;
     obj.powerWatt = data.readUInt16BE(10);
@@ -188,10 +206,16 @@ class AutoStates {
     return data.length >= 6 && (data[1] === 98 || data[1] === 123) && data[5] === 9;
   }
   static parseAutoStates(data) {
-    if (data[0] !== 252) throw new Error("Invalid auto payload");
-    if (data[5] !== 9) throw new Error("Not auto states");
+    if (data[0] !== 252) {
+      throw new Error("Invalid auto payload");
+    }
+    if (data[5] !== 9) {
+      throw new Error("Not auto states");
+    }
     const fcc = (0, import_utils.calcFcc)(data.subarray(1, -1));
-    if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+    if (fcc !== data[data.length - 1]) {
+      throw new Error("Invalid checksum");
+    }
     const obj = new AutoStates();
     obj.powerMode = data[9];
     obj.autoMode = data[10];
@@ -221,10 +245,16 @@ class GeneralStates {
     return data.length >= 6 && (data[1] === 98 || data[1] === 123) && data[5] === 2;
   }
   static parseGeneralStates(data) {
-    if (data[0] !== 252) throw new Error("Invalid general payload");
-    if (data[5] !== 2) throw new Error("Not general states");
+    if (data[0] !== 252) {
+      throw new Error("Invalid general payload");
+    }
+    if (data[5] !== 2) {
+      throw new Error("Not general states");
+    }
     const fcc = (0, import_utils.calcFcc)(data.subarray(1, -1));
-    if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+    if (fcc !== data[data.length - 1]) {
+      throw new Error("Invalid checksum");
+    }
     const obj = new GeneralStates();
     obj.powerOnOff = data[8] === 1 ? 1 /* ON */ : 0 /* OFF */;
     obj.driveMode = data[9] & 7;
@@ -311,7 +341,9 @@ class ParsedDeviceState {
   static parseCodeValues(codeValues) {
     const parsed = new ParsedDeviceState();
     for (const hexValue of codeValues) {
-      if (!hexValue || hexValue.length < 2) continue;
+      if (!hexValue || hexValue.length < 2) {
+        continue;
+      }
       const data = Buffer.from(hexValue, "hex");
       if (GeneralStates.isGeneralStatesPayload(data)) {
         parsed.general = GeneralStates.parseGeneralStates(data);
@@ -320,7 +352,7 @@ class ParsedDeviceState {
       } else if (ErrorStates.isErrorStatesPayload(data)) {
         parsed.errors = ErrorStates.parseErrorStates(data);
       } else if (EnergyStates.isEnergyStatesPayload(data)) {
-        parsed.energy = EnergyStates.parseEnergyStates(data, parsed.general);
+        parsed.energy = EnergyStates.parseEnergyStates(data);
       } else if (AutoStates.isAutoStatesPayload(data)) {
         parsed.autoState = AutoStates.parseAutoStates(data);
       }

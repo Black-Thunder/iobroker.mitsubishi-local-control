@@ -1,5 +1,6 @@
 // src/mitsubishi/mitsubishiApi.ts
-import axios, { AxiosInstance } from "axios";
+import type { AxiosInstance } from "axios";
+import axios from "axios";
 import * as crypto from "crypto";
 import { KEY_SIZE, STATIC_KEY } from "./types";
 import { padIso7816, unpadIso7816 } from "./utils";
@@ -8,26 +9,18 @@ export class MitsubishiAPI {
 	private log: ioBroker.Logger;
 	private deviceHostPort: string;
 	private encryptionKey: Buffer;
-	private adminUsername: string;
-	private adminPassword: string;
 	private http: AxiosInstance;
 
-	constructor(
-		deviceHostPort: string,
-		log: ioBroker.Logger,
-		encryptionKey: string | Buffer = STATIC_KEY,
-		adminUsername = "admin",
-		adminPassword = "me1debug@0567",
-	) {
+	constructor(deviceHostPort: string, log: ioBroker.Logger, encryptionKey: string | Buffer = STATIC_KEY) {
 		this.deviceHostPort = deviceHostPort;
 		this.log = log;
-		if (typeof encryptionKey === "string") encryptionKey = Buffer.from(encryptionKey, "utf8");
+		if (typeof encryptionKey === "string") {
+			encryptionKey = Buffer.from(encryptionKey, "utf8");
+		}
 		if (encryptionKey.length < KEY_SIZE) {
 			encryptionKey = Buffer.concat([encryptionKey, Buffer.alloc(KEY_SIZE - encryptionKey.length, 0x00)]);
 		}
 		this.encryptionKey = encryptionKey.subarray(0, KEY_SIZE);
-		this.adminUsername = adminUsername;
-		this.adminPassword = adminPassword;
 
 		// Axios instance; note Python used requests.Session() + Retry adapter.
 		// We'll implement retries in make_request similarly.
@@ -55,7 +48,9 @@ export class MitsubishiAPI {
 	 * Returns base64(iv + ciphertext)
 	 */
 	encryptPayload(payload: string, iv?: Buffer): string {
-		if (!iv) iv = crypto.randomBytes(KEY_SIZE);
+		if (!iv) {
+			iv = crypto.randomBytes(KEY_SIZE);
+		}
 		const cipher = crypto.createCipheriv("aes-128-cbc", this.encryptionKey, iv);
 		cipher.setAutoPadding(false);
 
@@ -95,11 +90,13 @@ export class MitsubishiAPI {
 		// Try ISO7816 unpad
 		let decrypted_clean: Buffer;
 		try {
-			decrypted_clean = unpadIso7816(decrypted, KEY_SIZE);
-		} catch (e) {
+			decrypted_clean = unpadIso7816(decrypted);
+		} catch {
 			// fallback: remove trailing 0x00
 			let end = decrypted.length;
-			while (end > 0 && decrypted[end - 1] === 0x00) end--;
+			while (end > 0 && decrypted[end - 1] === 0x00) {
+				end--;
+			}
 			decrypted_clean = decrypted.subarray(0, end);
 		}
 
@@ -107,7 +104,7 @@ export class MitsubishiAPI {
 		try {
 			const result = decrypted_clean.toString("utf8");
 			return result;
-		} catch (ude) {
+		} catch {
 			// Node's Buffer.toString won't throw UnicodeDecodeError like Python; but we'll follow fallback logic.
 			// Attempt to find closing tags in raw bytes, then decode slice.
 		}
@@ -185,9 +182,8 @@ export class MitsubishiAPI {
 
 					const decrypted = this.decryptPayload(encrypted_response);
 					return decrypted;
-				} else {
-					throw new Error("Could not find any text in response");
 				}
+				throw new Error("Could not find any text in response");
 			} catch (err) {
 				lastErr = err;
 				if (attempt < maxRetries) {
@@ -221,69 +217,6 @@ export class MitsubishiAPI {
 	sendHexCommand(hexCommand: string): Promise<string> {
 		const payload = `<CSV><CONNECT>ON</CONNECT><CODE><VALUE>${hexCommand}</VALUE></CODE></CSV>`;
 		return this.makeRequest(payload);
-	}
-
-	async getUnitInfo(): Promise<Record<string, Record<string, string>>> {
-		const url = `http://${this.deviceHostPort}/unitinfo`;
-		const resp = await this.http.get(url, {
-			auth: {
-				username: this.adminUsername,
-				password: this.adminPassword,
-			},
-			timeout: 2000,
-		});
-		return this.parseUnitInfoHtml(resp.data);
-	}
-
-	private parseUnitInfoHtml(html: string): Record<string, Record<string, string>> {
-		const unitInfo: Record<string, Record<string, string>> = {};
-		const titleRegex = /<div[^>]*class=["']titleA["'][^>]*>([^<]+)<\/div>/gi;
-		const dtDdRegex = /<dt>([^<]+)<\/dt>\s*<dd>([^<]+)<\/dd>/gi;
-
-		const sections: { name: string; index: number }[] = [];
-		let match: RegExpExecArray | null;
-		while ((match = titleRegex.exec(html)) !== null) {
-			sections.push({ name: match[1].trim(), index: match.index });
-		}
-
-		if (sections.length === 0) {
-			unitInfo["Unit Info"] = {};
-			let m;
-			while ((m = dtDdRegex.exec(html)) !== null) {
-				unitInfo["Unit Info"][m[1].trim()] = m[2].trim();
-			}
-			return unitInfo;
-		}
-
-		for (let i = 0; i < sections.length; i++) {
-			const name = sections[i].name;
-			const start = sections[i].index;
-			const end = i + 1 < sections.length ? sections[i + 1].index : html.length;
-			const segment = html.slice(start, end);
-			unitInfo[name] = {};
-			let m;
-			while ((m = dtDdRegex.exec(segment)) !== null) {
-				unitInfo[name][m[1].trim()] = m[2].trim();
-			}
-		}
-
-		// try casting Channel and RSSI like python
-		try {
-			if (unitInfo["Adaptor Information"] && unitInfo["Adaptor Information"]["Channel"]) {
-				unitInfo["Adaptor Information"]["Channel"] = String(
-					parseInt(unitInfo["Adaptor Information"]["Channel"], 10),
-				);
-			}
-		} catch {}
-		try {
-			if (unitInfo["Adaptor Information"] && unitInfo["Adaptor Information"]["RSSI"]) {
-				unitInfo["Adaptor Information"]["RSSI"] = String(
-					parseFloat(unitInfo["Adaptor Information"]["RSSI"].replace("dBm", "").trim()),
-				);
-			}
-		} catch {}
-
-		return unitInfo;
 	}
 
 	close(): void {

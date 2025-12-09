@@ -48,7 +48,7 @@ class MitsubishiLocalControl extends utils.Adapter {
       controller: import_mitsubishiController.MitsubishiController.create(c.ip, this.log)
     }));
     try {
-      this.startPolling();
+      await this.startPolling();
       await this.setAdapterConnectionState(true);
     } catch (err) {
       this.log.error(`Error while starting polling: ${err}`);
@@ -75,7 +75,7 @@ class MitsubishiLocalControl extends utils.Adapter {
    * @param id - State ID
    * @param state - State object
    */
-  onStateChange(id, state) {
+  async onStateChange(id, state) {
     if (state) {
       this.log.silly(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
       if (state.ack === false) {
@@ -93,7 +93,7 @@ class MitsubishiLocalControl extends utils.Adapter {
         this.log.debug(`Command on ${id} \u2192 forwarding to client ${client.name} (${mac})`);
         try {
           if (id.endsWith("powerOnOff")) {
-            client.controller.setPower(state.val);
+            await client.controller.setPower(state.val);
           }
         } catch (err) {
           this.log.error(`Error executing command for ${mac}: ${err}`);
@@ -105,19 +105,21 @@ class MitsubishiLocalControl extends utils.Adapter {
   }
   async setAdapterConnectionState(isConnected) {
     await this.setStateChangedAsync("info.connection", isConnected, true);
-    await this.setForeignState(`system.adapter.${this.namespace}.connected`, isConnected, true);
+    this.setForeignState(`system.adapter.${this.namespace}.connected`, isConnected, true);
   }
   getClientByMac(mac) {
     const noColMac = String(mac).toLowerCase().replace(/[^0-9a-f]/g, "");
-    if (noColMac.length !== 12) return void 0;
+    if (noColMac.length !== 12) {
+      return void 0;
+    }
     const colMac = noColMac.match(/.{1,2}/g).join(":");
     return this.clients.find((c) => {
       var _a;
       return ((_a = c.controller.parsedDeviceState) == null ? void 0 : _a.mac) === colMac;
     });
   }
-  startPolling() {
-    let interval = this.config.pollingInterval * 1e3;
+  async startPolling() {
+    const interval = this.config.pollingInterval * 1e3;
     for (const client of this.clients) {
       const poll = async () => {
         try {
@@ -130,7 +132,7 @@ class MitsubishiLocalControl extends utils.Adapter {
           client.pollingJob = setTimeout(poll, interval);
         }
       };
-      poll();
+      await poll();
       this.log.debug(`Started polling timer for device ${client.name}.`);
     }
   }
@@ -179,7 +181,6 @@ class MitsubishiLocalControl extends utils.Adapter {
       }
       let type = "string";
       let role = "state";
-      let val = value;
       let unit = void 0;
       let states;
       let write = false;
@@ -277,7 +278,7 @@ class MitsubishiLocalControl extends utils.Adapter {
       if (write) {
         this.subscribeStates(id);
       }
-      await adapter.setState(id, { val, ack: true });
+      await adapter.setState(id, { val: value, ack: true });
     }
   }
   async updateDeviceStates(adapter, parsedState, clientName) {

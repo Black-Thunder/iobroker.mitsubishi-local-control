@@ -3,6 +3,7 @@ import { calcFcc } from "./utils";
 export const KEY_SIZE = 16;
 export const STATIC_KEY = Buffer.from("unregistered\0\0\0\0", "utf8");
 
+/* eslint-disable no-unused-vars */
 export enum PowerOnOff {
 	OFF = 0,
 	ON = 1,
@@ -83,6 +84,8 @@ export enum Controls08 {
 	Buzzer = 0x10,
 	WindAndWindBreak = 0x20,
 }
+/* eslint-enable no-unused-vars */
+
 export class SensorStates {
 	insideTemperature1Coarse: number = 24;
 	outsideTemperature: number = 21.0;
@@ -95,12 +98,17 @@ export class SensorStates {
 	}
 
 	static parseSensorStates(data: Buffer): SensorStates {
-		if (data[0] !== 0xfc) throw new Error("Invalid sensor payload");
-		if (data[5] !== 0x03) throw new Error("Not sensor states");
+		if (data[0] !== 0xfc) {
+			throw new Error("Invalid sensor payload");
+		}
+		if (data[5] !== 0x03) {
+			throw new Error("Not sensor states");
+		}
 
 		const fcc = calcFcc(data.subarray(1, -1));
-		if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
-
+		if (fcc !== data[data.length - 1]) {
+			throw new Error("Invalid checksum");
+		}
 		const obj = new SensorStates();
 		obj.insideTemperature1Coarse = 10 + data[8];
 		obj.outsideTemperature = (data[10] - 0x80) * 0.5;
@@ -123,11 +131,17 @@ export class ErrorStates {
 	}
 
 	static parseErrorStates(data: Buffer): ErrorStates {
-		if (data[0] !== 0xfc) throw new Error("Invalid error payload");
-		if (data[5] !== 0x04) throw new Error("Not error states");
+		if (data[0] !== 0xfc) {
+			throw new Error("Invalid error payload");
+		}
+		if (data[5] !== 0x04) {
+			throw new Error("Not error states");
+		}
 
 		const fcc = calcFcc(data.subarray(1, -1));
-		if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+		if (fcc !== data[data.length - 1]) {
+			throw new Error("Invalid checksum");
+		}
 
 		const obj = new ErrorStates();
 		obj.errorCode = data.readUInt16BE(9);
@@ -144,12 +158,18 @@ export class EnergyStates {
 		return data.length >= 6 && (data[1] === 0x62 || data[1] === 0x7b) && data[5] === 0x06;
 	}
 
-	static parseEnergyStates(data: Buffer, generalStates?: GeneralStates): EnergyStates {
-		if (data[0] !== 0xfc) throw new Error("Invalid energy payload");
-		if (data[5] !== 0x06) throw new Error("Not energy states");
+	static parseEnergyStates(data: Buffer): EnergyStates {
+		if (data[0] !== 0xfc) {
+			throw new Error("Invalid energy payload");
+		}
+		if (data[5] !== 0x06) {
+			throw new Error("Not energy states");
+		}
 
 		const fcc = calcFcc(data.subarray(1, -1));
-		if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+		if (fcc !== data[data.length - 1]) {
+			throw new Error("Invalid checksum");
+		}
 
 		const obj = new EnergyStates();
 		obj.operating = data[9] !== 0;
@@ -168,11 +188,17 @@ export class AutoStates {
 	}
 
 	static parseAutoStates(data: Buffer): AutoStates {
-		if (data[0] !== 0xfc) throw new Error("Invalid auto payload");
-		if (data[5] !== 0x09) throw new Error("Not auto states");
+		if (data[0] !== 0xfc) {
+			throw new Error("Invalid auto payload");
+		}
+		if (data[5] !== 0x09) {
+			throw new Error("Not auto states");
+		}
 
 		const fcc = calcFcc(data.subarray(1, -1));
-		if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+		if (fcc !== data[data.length - 1]) {
+			throw new Error("Invalid checksum");
+		}
 
 		const obj = new AutoStates();
 		obj.powerMode = data[9];
@@ -207,11 +233,17 @@ export class GeneralStates {
 	}
 
 	static parseGeneralStates(data: Buffer): GeneralStates {
-		if (data[0] !== 0xfc) throw new Error("Invalid general payload");
-		if (data[5] !== 0x02) throw new Error("Not general states");
+		if (data[0] !== 0xfc) {
+			throw new Error("Invalid general payload");
+		}
+		if (data[5] !== 0x02) {
+			throw new Error("Not general states");
+		}
 
 		const fcc = calcFcc(data.subarray(1, -1));
-		if (fcc !== data[data.length - 1]) throw new Error("Invalid checksum");
+		if (fcc !== data[data.length - 1]) {
+			throw new Error("Invalid checksum");
+		}
 
 		const obj = new GeneralStates();
 		obj.powerOnOff = data[8] === 1 ? PowerOnOff.ON : PowerOnOff.OFF;
@@ -307,7 +339,9 @@ export class ParsedDeviceState {
 		const parsed = new ParsedDeviceState();
 
 		for (const hexValue of codeValues) {
-			if (!hexValue || hexValue.length < 2) continue;
+			if (!hexValue || hexValue.length < 2) {
+				continue;
+			}
 
 			const data = Buffer.from(hexValue, "hex");
 
@@ -318,7 +352,7 @@ export class ParsedDeviceState {
 			} else if (ErrorStates.isErrorStatesPayload(data)) {
 				parsed.errors = ErrorStates.parseErrorStates(data);
 			} else if (EnergyStates.isEnergyStatesPayload(data)) {
-				parsed.energy = EnergyStates.parseEnergyStates(data, parsed.general);
+				parsed.energy = EnergyStates.parseEnergyStates(data);
 			} else if (AutoStates.isAutoStatesPayload(data)) {
 				parsed.autoState = AutoStates.parseAutoStates(data);
 			}

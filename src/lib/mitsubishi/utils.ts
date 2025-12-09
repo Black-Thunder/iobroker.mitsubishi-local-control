@@ -10,11 +10,13 @@ export function padIso7816(input: Buffer, blockSize = KEY_SIZE): Buffer {
 	return out;
 }
 
-export function unpadIso7816(padded: Buffer, blockSize = KEY_SIZE): Buffer {
+export function unpadIso7816(padded: Buffer): Buffer {
 	// Remove ISO 7816-4 padding: find last 0x80 and cut there, else throw
 	let i = padded.length - 1;
 	// strip trailing 0x00
-	while (i >= 0 && padded[i] === 0x00) i--;
+	while (i >= 0 && padded[i] === 0x00) {
+		i--;
+	}
 	if (i < 0 || padded[i] !== 0x80) {
 		throw new Error("Invalid ISO7816 padding");
 	}
