@@ -1,0 +1,111 @@
+{
+	"common": {
+		"name": "mitsubishi-local-control",
+		"version": "0.0.1",
+		"news": {
+			"0.0.1": {
+				"en": "initial release",
+				"de": "Erstveröffentlichung",
+				"ru": "Начальная версия",
+				"pt": "lançamento inicial",
+				"nl": "Eerste uitgave",
+				"fr": "Première version",
+				"it": "Versione iniziale",
+				"es": "Versión inicial",
+				"pl": "Pierwsze wydanie",
+				"uk": "Початкова версія",
+				"zh-cn": "首次出版"
+			}
+		},
+		"titleLang": {
+			"en": "Mitsubishi local control",
+			"de": "Lokale Mitsubishi-Steuerung",
+			"ru": "Местное управление Мицубиси",
+			"pt": "Controle local Mitsubishi",
+			"nl": "Mitsubishi lokale controle",
+			"fr": "Contrôle local Mitsubishi",
+			"it": "Controllo locale Mitsubishi",
+			"es": "control local mitsubishi",
+			"pl": "Sterowanie lokalne Mitsubishi",
+			"uk": "Місцеве керування Mitsubishi",
+			"zh-cn": "三菱本地控制"
+		},
+		"desc": {
+			"en": "mitsubishi-local-control",
+			"de": "mitsubishi-local-control",
+			"ru": "mitsubishi-локальное управление",
+			"pt": "mitsubishi-controle local",
+			"nl": "mitsubishi-lokale controle",
+			"fr": "contrôle-local-mitsubishi",
+			"it": "mitsubishi-controllo-locale",
+			"es": "control-local-mitsubishi",
+			"pl": "lokalne sterowanie mitsubishi",
+			"uk": "mitsubishi-local-control",
+			"zh-cn": "三菱本地控制"
+		},
+		"authors": ["Black-Thunder <glwars@aol.de>"],
+		"keywords": ["template", "automation", "IoT", "integration"],
+		"licenseInformation": {
+			"type": "free",
+			"license": "MIT"
+		},
+		"platform": "Javascript/Node.js",
+		"icon": "mitsubishi-local-control.png",
+		"enabled": true,
+		"extIcon": "https://raw.githubusercontent.com/Black-Thunder/ioBroker.mitsubishi-local-control/main/admin/mitsubishi-local-control.png",
+		"readme": "https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/blob/main/README.md",
+		"loglevel": "info",
+		"tier": 3,
+		"mode": "daemon",
+		"type": "climate-control",
+		"compact": true,
+		"connectionType": "local",
+		"dataSource": "poll",
+		"adminUI": {
+			"config": "json"
+		},
+		"dependencies": [
+			{
+				"js-controller": ">=6.0.11"
+			}
+		],
+		"globalDependencies": [
+			{
+				"admin": ">=7.0.23"
+			}
+		]
+	},
+	"native": {
+		"clients": [
+			{
+				"name": "",
+				"ip": ""
+			}
+		],
+		"pollingInterval": 10
+	},
+	"objects": [],
+	"instanceObjects": [
+		{
+			"_id": "info",
+			"type": "channel",
+			"common": {
+				"name": "Information"
+			},
+			"native": {}
+		},
+		{
+			"_id": "info.connection",
+			"type": "state",
+			"common": {
+				"role": "indicator.connected",
+				"name": "Device or service connected",
+				"type": "boolean",
+				"read": true,
+				"write": false,
+				"def": false
+			},
+			"native": {}
+		}
+	]
+}

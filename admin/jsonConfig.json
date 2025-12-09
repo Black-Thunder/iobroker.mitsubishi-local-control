@@ -1,0 +1,42 @@
+{
+	"i18n": true,
+	"type": "panel",
+	"items": {
+		"clients": {
+			"type": "table",
+			"label": "Clients",
+			"items": [
+				{
+					"type": "text",
+					"attr": "name",
+					"label": "Name",
+					"tooltip": "Friendly name of the device"
+				},
+				{
+					"type": "text",
+					"attr": "ip",
+					"label": "IP Address",
+					"tooltip": "IP address of the Mitsubishi device"
+				}
+			],
+			"xs": 12,
+			"sm": 12,
+			"md": 12,
+			"lg": 12,
+			"xl": 12
+		},
+		"pollingInterval": {
+			"type": "number",
+			"label": "Polling interval",
+			"newLine": false,
+			"min": 5,
+			"step": 1,
+			"tooltip": "Enter your desired polling interval (in seconds) here to query data from the devices",
+			"xs": 12,
+			"sm": 12,
+			"md": 6,
+			"lg": 4,
+			"xl": 4
+		}
+	}
+}

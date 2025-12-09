@@ -1,0 +1,26 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Launch ioBroker Adapter (built)",
+			"skipFiles": ["<node_internals>/**"],
+			"preLaunchTask": "npm: build",
+			"args": ["--debug", "0", "--logs"],
+			"program": "${workspaceFolder}/build/main.js",
+			"outFiles": ["${workspaceFolder}/build/**/*.js"],
+			"console": "integratedTerminal"
+		},
+		{
+			"name": "Debug npm dev-server",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/node_modules/npm/bin/npm-cli.js",
+			"args": ["run", "dev-server", "--", "watch"],
+			"restart": true,
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
+		}
+	]
+}
