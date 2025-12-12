@@ -49,7 +49,8 @@ class MitsubishiLocalControl extends utils.Adapter {
     this.log.info(`Configuring ${this.config.devices.length} device(s)...`);
     this.devices = ((_a = this.config.devices) != null ? _a : []).map((c) => ({
       ...c,
-      controller: import_mitsubishiController.MitsubishiController.create(c.ip, this.log)
+      controller: import_mitsubishiController.MitsubishiController.create(c.ip, this.log),
+      mac: void 0
     }));
     try {
       await this.startPolling();
@@ -188,9 +189,12 @@ class MitsubishiLocalControl extends utils.Adapter {
         try {
           this.log.debug(`Polling ${device.name} (${device.ip}) ...`);
           const parsed = await device.controller.fetchStatus();
+          device.mac = parsed.mac;
           await this.updateDeviceStates(this, parsed, device.name);
+          await this.setDeviceOnlineState(device.mac, true);
         } catch (err) {
           this.log.error(`Polling error for ${device.name}: ${err}`);
+          await this.setDeviceOnlineState(device.mac, false);
         }
       };
       await poll();
@@ -206,6 +210,14 @@ class MitsubishiLocalControl extends utils.Adapter {
       }
       c.controller.cleanupController();
     });
+  }
+  async setDeviceOnlineState(mac, isOnline) {
+    if (mac) {
+      await this.setState(`${this.namespace}.devices.${mac.replace(/:/g, "")}.info.deviceOnline`, {
+        val: isOnline,
+        ack: true
+      });
+    }
   }
   enumToStates(enumObj) {
     var _a;
@@ -329,6 +341,9 @@ class MitsubishiLocalControl extends utils.Adapter {
               if (keyLower.includes("energy")) {
                 unit = "kWh";
               }
+            } else if (keyLower.includes("errorcode")) {
+              states = { 32768: "No error" };
+              role = "value";
             } else {
               role = "value";
             }
@@ -358,10 +373,17 @@ class MitsubishiLocalControl extends utils.Adapter {
     }
   }
   async updateDeviceStates(adapter, parsedState, deviceName) {
+    var _a;
     const deviceId = `devices.${parsedState.mac.replace(/:/g, "")}`;
     await adapter.setObjectNotExistsAsync(`${deviceId}`, {
-      type: "channel",
-      common: { name: `${deviceName}` },
+      type: "device",
+      common: {
+        statusStates: {
+          onlineId: `${this.namespace}.${deviceId}.info.deviceOnline`,
+          errorId: `${this.namespace}.${deviceId}.info.hasError`
+        },
+        name: `${deviceName}`
+      },
       native: {}
     });
     await adapter.setObjectNotExistsAsync(`${deviceId}.control`, {
@@ -374,7 +396,34 @@ class MitsubishiLocalControl extends utils.Adapter {
       common: { name: "Device information" },
       native: {}
     });
+    await adapter.setObjectNotExistsAsync(`${deviceId}.info.deviceOnline`, {
+      type: "state",
+      common: {
+        name: "Is device online",
+        type: "boolean",
+        role: "indicator.reachable",
+        read: true,
+        write: false,
+        desc: "Indicates if device is reachable",
+        def: false
+      },
+      native: {}
+    });
+    await adapter.setObjectNotExistsAsync(`${deviceId}.info.hasError`, {
+      type: "state",
+      common: {
+        name: "Has device an error",
+        type: "boolean",
+        role: "indicator.error",
+        read: true,
+        write: false,
+        desc: "Indicates if device has an error",
+        def: false
+      },
+      native: {}
+    });
     await this.writeRecursive(adapter, deviceId, parsedState);
+    await adapter.setState(`${deviceId}.info.hasError`, { val: (_a = parsedState.errors) == null ? void 0 : _a.isAbnormalState, ack: true });
   }
 }
 if (require.main !== module) {

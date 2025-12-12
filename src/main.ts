@@ -18,6 +18,7 @@ import {
 interface Device {
 	name: string;
 	ip: string;
+	mac: string | undefined;
 	controller: MitsubishiController;
 	pollingJob?: NodeJS.Timeout;
 }
@@ -51,6 +52,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 		this.devices = (this.config.devices ?? []).map(c => ({
 			...c,
 			controller: MitsubishiController.create(c.ip, this.log),
+			mac: undefined,
 		}));
 
 		try {
@@ -222,10 +224,13 @@ class MitsubishiLocalControl extends utils.Adapter {
 					this.log.debug(`Polling ${device.name} (${device.ip}) ...`);
 
 					const parsed = await device.controller.fetchStatus();
+					device.mac = parsed.mac;
 
 					await this.updateDeviceStates(this, parsed, device.name);
+					await this.setDeviceOnlineState(device.mac, true);
 				} catch (err: any) {
 					this.log.error(`Polling error for ${device.name}: ${err}`);
+					await this.setDeviceOnlineState(device.mac, false);
 				}
 			};
 
@@ -244,6 +249,15 @@ class MitsubishiLocalControl extends utils.Adapter {
 			}
 			c.controller.cleanupController();
 		});
+	}
+
+	private async setDeviceOnlineState(mac: string | undefined, isOnline: boolean): Promise<void> {
+		if (mac) {
+			await this.setState(`${this.namespace}.devices.${mac.replace(/:/g, "")}.info.deviceOnline`, {
+				val: isOnline,
+				ack: true,
+			});
+		}
 	}
 
 	private enumToStates(enumObj: any): Record<string, string> {
@@ -385,6 +399,9 @@ class MitsubishiLocalControl extends utils.Adapter {
 							if (keyLower.includes("energy")) {
 								unit = "kWh";
 							}
+						} else if (keyLower.includes("errorcode")) {
+							states = { 32768: "No error" };
+							role = "value";
 						} else {
 							role = "value";
 						}
@@ -428,8 +445,14 @@ class MitsubishiLocalControl extends utils.Adapter {
 		const deviceId = `devices.${parsedState.mac.replace(/:/g, "")}`;
 
 		await adapter.setObjectNotExistsAsync(`${deviceId}`, {
-			type: "channel",
-			common: { name: `${deviceName}` },
+			type: "device",
+			common: {
+				statusStates: {
+					onlineId: `${this.namespace}.${deviceId}.info.deviceOnline`,
+					errorId: `${this.namespace}.${deviceId}.info.hasError`,
+				},
+				name: `${deviceName}`,
+			},
 			native: {},
 		});
 
@@ -445,7 +468,38 @@ class MitsubishiLocalControl extends utils.Adapter {
 			native: {},
 		});
 
+		await adapter.setObjectNotExistsAsync(`${deviceId}.info.deviceOnline`, {
+			type: "state",
+			common: {
+				name: "Is device online",
+				type: "boolean",
+				role: "indicator.reachable",
+				read: true,
+				write: false,
+				desc: "Indicates if device is reachable",
+				def: false,
+			},
+			native: {},
+		});
+
+		await adapter.setObjectNotExistsAsync(`${deviceId}.info.hasError`, {
+			type: "state",
+			common: {
+				name: "Has device an error",
+				type: "boolean",
+				role: "indicator.error",
+				read: true,
+				write: false,
+				desc: "Indicates if device has an error",
+				def: false,
+			},
+			native: {},
+		});
+
 		await this.writeRecursive(adapter, deviceId, parsedState);
+
+		// Set error state according to error code
+		await adapter.setState(`${deviceId}.info.hasError`, { val: parsedState.errors?.isAbnormalState, ack: true });
 	}
 }
 

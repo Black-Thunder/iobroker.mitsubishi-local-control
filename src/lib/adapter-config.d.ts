@@ -4,7 +4,7 @@
 declare global {
 	namespace ioBroker {
 		interface AdapterConfig {
-			devices: { name: string; ip: string }[];
+			devices: { name: string; ip: string; mac: string | undefined }[];
 			pollingInterval: number;
 		}
 	}
