@@ -244,7 +244,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 	private stopPolling(): void {
 		this.devices.forEach(c => {
 			if (c.pollingJob) {
-				clearTimeout(c.pollingJob);
+				clearInterval(c.pollingJob);
 				this.log.debug(`Cleared polling timer for device ${c.name}.`);
 			}
 			c.controller.cleanupController();

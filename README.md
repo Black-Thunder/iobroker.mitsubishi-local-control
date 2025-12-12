@@ -25,7 +25,6 @@ Describe your project here
 ### **WORK IN PROGRESS**
 
 - (Black-Thunder) initial release
--
 
 ## Acknowledgements
 
