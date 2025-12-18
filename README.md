@@ -40,7 +40,7 @@ The **mitsubishi-local-control** adapter integrates Mitsubishi Electric air cond
 	### **WORK IN PROGRESS**
 -->
 
-### **WORK IN PROGRESS**
+### 1.0.0 (XXXX-XX-XX)
 
 - (Black-Thunder) initial release
 
