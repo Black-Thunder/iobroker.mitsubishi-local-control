@@ -26,8 +26,8 @@ The **mitsubishi-local-control** adapter integrates Mitsubishi Electric air cond
 
 ## Documentation:
 
-- [English description](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/tree/main/docs/en/melcloud.md)
-- [Deutsche Beschreibung](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/tree/main/docs/de/melcloud.md)
+- [English description](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/tree/main/docs/en/mitsubishi-local-control.md)
+- [Deutsche Beschreibung](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/tree/main/docs/de/mitsubishi-local-control.md)
 
 ## Discussion:
 
