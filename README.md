@@ -31,7 +31,7 @@ The **mitsubishi-local-control** adapter integrates Mitsubishi Electric air cond
 
 ## Discussion:
 
-- [ioBroker Forum](TODO)
+- [ioBroker Forum](https://forum.iobroker.net/topic/83267)
 
 ## Changelog
 
