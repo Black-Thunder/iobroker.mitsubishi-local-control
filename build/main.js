@@ -99,6 +99,8 @@ class MitsubishiLocalControl extends utils.Adapter {
         try {
           if (id.endsWith("power")) {
             await device.controller.setPower(state.val);
+          } else if (id.endsWith("powerSaving")) {
+            await device.controller.setPowerSaving(state.val);
           } else if (id.endsWith("targetTemperature")) {
             await device.controller.setTemperature(state.val);
           } else if (id.endsWith("operationMode")) {
@@ -111,6 +113,8 @@ class MitsubishiLocalControl extends utils.Adapter {
             await device.controller.setHorizontalVane(state.val);
           } else if (id.endsWith("remoteLock")) {
             await device.controller.setRemoteLock(state.val);
+          } else if (id.endsWith("dehumidifierLevel")) {
+            await device.controller.setDehumidifier(state.val);
           } else if (id.endsWith("triggerBuzzer")) {
             await device.controller.triggerBuzzer();
           } else {
@@ -139,7 +143,7 @@ class MitsubishiLocalControl extends utils.Adapter {
     }
     const cleanedDevices = devices.filter((d) => {
       var _a, _b;
-      return ((_a = d == null ? void 0 : d.name) == null ? void 0 : _a.trim()) && ((_b = d == null ? void 0 : d.ip) == null ? void 0 : _b.trim()) && this.isValidIPv4(d.ip.trim());
+      return ((_a = d == null ? void 0 : d.name) == null ? void 0 : _a.trim()) && ((_b = d == null ? void 0 : d.ip) == null ? void 0 : _b.trim()) && (0, import_utils.isValidIPv4)(d.ip.trim());
     });
     if (cleanedDevices.length !== devices.length) {
       this.log.warn("Some device entries were invalid and have been removed.");
@@ -148,22 +152,6 @@ class MitsubishiLocalControl extends utils.Adapter {
     if (this.config.devices.length === 0) {
       this.log.error("No valid devices configured. Please add at least one device.");
       return false;
-    }
-    return true;
-  }
-  isValidIPv4(ip) {
-    const parts = ip.split(".");
-    if (parts.length !== 4) {
-      return false;
-    }
-    for (const part of parts) {
-      if (!/^\d{1,3}$/.test(part)) {
-        return false;
-      }
-      const num = Number(part);
-      if (num < 0 || num > 255) {
-        return false;
-      }
     }
     return true;
   }
@@ -223,24 +211,6 @@ class MitsubishiLocalControl extends utils.Adapter {
       });
     }
   }
-  enumToStates(enumObj) {
-    var _a;
-    const res = {};
-    for (const key of Object.keys(enumObj)) {
-      const v = enumObj[key];
-      if (typeof v === "number") {
-        res[v] = (_a = this.enumName(enumObj, v)) != null ? _a : key;
-      }
-    }
-    return res;
-  }
-  isEnumValue(enumObj, value) {
-    return Object.values(enumObj).includes(value);
-  }
-  enumName(enumObj, value) {
-    var _a;
-    return (_a = enumObj[value]) != null ? _a : value.toString();
-  }
   /**
    * Aktualisiert die ioBroker-Objekte für ein ParsedDeviceState
    */
@@ -253,93 +223,99 @@ class MitsubishiLocalControl extends utils.Adapter {
       }
       let type = "string";
       let name = key;
+      let desc = void 0;
       let role = "state";
       let unit = void 0;
       let states;
       let read = true;
       let write = false;
+      let min = void 0;
+      let max = void 0;
       switch (key) {
-        case "power":
-          if (typeof value === "boolean") {
-            type = "boolean";
-            role = "switch.power";
-            name = "Power";
-            write = true;
-          }
-          break;
         case "operationMode":
-          if (this.isEnumValue(import_types.OperationMode, value)) {
+          if ((0, import_utils.isEnumValue)(import_types.OperationMode, value)) {
             type = "number";
-            states = this.enumToStates(import_types.OperationMode);
+            states = (0, import_utils.enumToStates)(import_types.OperationMode);
             role = "level.mode.airconditioner";
             name = "Operation Mode";
+            desc = "Sets the operation mode of the device";
             write = true;
           }
           break;
         case "fanSpeed":
-          if (this.isEnumValue(import_types.FanSpeed, value)) {
+          if ((0, import_utils.isEnumValue)(import_types.FanSpeed, value)) {
             type = "number";
-            states = this.enumToStates(import_types.FanSpeed);
+            states = (0, import_utils.enumToStates)(import_types.FanSpeed);
             role = "level.mode.fan";
-            name = "Fan speed (while in manual mode)";
+            name = "Fan speed";
+            desc = "Sets the fan speed when in manual mode";
             write = true;
           }
           break;
         case "vaneVerticalDirection":
-          if (this.isEnumValue(import_types.VaneVerticalDirection, value)) {
+          if ((0, import_utils.isEnumValue)(import_types.VaneVerticalDirection, value)) {
             type = "number";
-            states = this.enumToStates(import_types.VaneVerticalDirection);
+            states = (0, import_utils.enumToStates)(import_types.VaneVerticalDirection);
             role = "level";
             name = "Vane vertical direction";
+            desc = "Sets the vertical direction of the vane";
             write = true;
           }
           break;
         case "vaneHorizontalDirection":
-          if (this.isEnumValue(import_types.VaneHorizontalDirection, value)) {
+          if ((0, import_utils.isEnumValue)(import_types.VaneHorizontalDirection, value)) {
             type = "number";
-            states = this.enumToStates(import_types.VaneHorizontalDirection);
+            states = (0, import_utils.enumToStates)(import_types.VaneHorizontalDirection);
             role = "level";
             name = "Vane horizontal direction";
+            desc = "Sets the horizontal direction of the vane";
             write = true;
           }
           break;
         case "autoMode":
-          if (this.isEnumValue(import_types.AutoMode, value)) {
+          if ((0, import_utils.isEnumValue)(import_types.AutoMode, value)) {
             type = "number";
-            states = this.enumToStates(import_types.AutoMode);
+            states = (0, import_utils.enumToStates)(import_types.AutoMode);
             role = "mode";
             name = "Auto mode";
+            desc = "Current auto mode of the device";
           }
           break;
         case "remoteLock":
-          if (this.isEnumValue(import_types.RemoteLock, value)) {
+          if ((0, import_utils.isEnumValue)(import_types.RemoteLock, value)) {
             type = "number";
-            states = this.enumToStates(import_types.RemoteLock);
+            states = (0, import_utils.enumToStates)(import_types.RemoteLock);
             write = true;
             name = "Remote lock";
+            desc = "Sets the remote lock state of the device";
           }
           break;
-        case "triggerBuzzer":
-          if (typeof value === "boolean") {
-            type = "boolean";
-            role = "button";
-            read = false;
-            write = true;
-            name = "Trigger buzzer";
-          }
-          break;
+        // Map other types
         default:
           if (typeof value === "number") {
             const keyLower = key.toLowerCase();
             type = "number";
+            desc = String(key).charAt(0).toUpperCase() + String(key).slice(1);
             if (keyLower.includes("temperature")) {
               role = "value.temperature";
               unit = "\xB0C";
               if (keyLower.includes("targettemperature")) {
                 write = true;
                 role = "level.temperature";
-                name = "Traget temperature";
+                name = "Target temperature";
+                desc = "Sets the target temperature of the device";
+                min = 16;
+                max = 31;
+                unit = "\xB0C";
               }
+            } else if (keyLower.includes("dehumidifierlevel")) {
+              write = true;
+              name = "Dehumidifier level";
+              desc = "Sets the dehumidifier level";
+              unit = "%";
+              min = 0;
+              max = 100;
+              role = "level.humidity";
             } else if (keyLower.includes("power") || keyLower.includes("energy")) {
               role = "value.power";
               if (keyLower.includes("energy")) {
@@ -352,8 +328,31 @@ class MitsubishiLocalControl extends utils.Adapter {
               role = "value";
             }
           } else if (typeof value === "boolean") {
+            const keyLower = key.toLowerCase();
             type = "boolean";
-            role = "indicator";
+            if (keyLower.includes("triggerbuzzer")) {
+              role = "button";
+              name = "Trigger buzzer";
+              desc = "Triggers the device buzzer";
+              read = false;
+              write = true;
+            } else if (keyLower === "power") {
+              role = "switch.power";
+              name = "Power";
+              desc = "Turns the device on or off";
+              write = true;
+            } else if (keyLower === "powersaving") {
+              role = "switch";
+              name = "Power saving";
+              desc = "Enables or disables power saving mode";
+              write = true;
+            } else {
+              role = "indicator";
+            }
+          } else if (typeof value === "string") {
+            type = "string";
+            role = "text";
+            desc = String(key).charAt(0).toUpperCase() + String(key).slice(1);
           }
       }
       const id = write ? `${parentId}.control.${key}` : `${parentId}.info.${key}`;
@@ -361,11 +360,14 @@ class MitsubishiLocalControl extends utils.Adapter {
         type: "state",
         common: {
           name,
+          desc,
           type,
           role,
           unit,
           read,
           write,
+          min,
+          max,
           ...states ? { states } : {}
         },
         native: {}
@@ -393,6 +395,32 @@ class MitsubishiLocalControl extends utils.Adapter {
     await adapter.setObjectNotExistsAsync(`${deviceId}.control`, {
       type: "channel",
       common: { name: "Device control" },
+      native: {}
+    });
+    await adapter.setObjectNotExistsAsync(`${deviceId}.control.enableEchonet`, {
+      type: "state",
+      common: {
+        name: "Enable ECHONET",
+        type: "boolean",
+        role: "button",
+        read: false,
+        write: true,
+        desc: "Send enable ECHONET command",
+        def: false
+      },
+      native: {}
+    });
+    await adapter.setObjectNotExistsAsync(`${deviceId}.control.rebootDevice`, {
+      type: "state",
+      common: {
+        name: "Reboot device",
+        type: "boolean",
+        role: "button",
+        read: false,
+        write: true,
+        desc: "Send reboot device command",
+        def: false
+      },
       native: {}
     });
     await adapter.setObjectNotExistsAsync(`${deviceId}.info`, {

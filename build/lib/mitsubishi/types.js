@@ -225,8 +225,8 @@ class GeneralStates {
   vaneVerticalDirection = 0 /* AUTO */;
   remoteLock = 0 /* UNLOCKED */;
   vaneHorizontalDirection = 0 /* AUTO */;
-  dehumSetting = 0;
-  isPowerSaving = false;
+  dehumidifierLevel = 0;
+  powerSaving = false;
   windAndWindBreakDirect = 0;
   iSeeSensor = true;
   wideVaneAdjustment = false;
@@ -260,8 +260,8 @@ class GeneralStates {
     obj.vaneHorizontalDirection = data[15] & 15;
     obj.wideVaneAdjustment = (data[15] & 240) === 128;
     obj.targetTemperature = data[16] !== 0 ? (data[16] - 128) / 2 : null;
-    obj.dehumSetting = data[17];
-    obj.isPowerSaving = data[18] > 0;
+    obj.dehumidifierLevel = data[17];
+    obj.powerSaving = data[18] > 0;
     obj.windAndWindBreakDirect = data[19];
     return obj;
   }
@@ -307,8 +307,8 @@ class GeneralStates {
     body[3] = 16;
     body[4] = 8;
     body[5] = controls08 & 255;
-    body[8] = controls08 & 4 /* Dehum */ ? this.dehumSetting & 255 : 0;
-    body[9] = this.isPowerSaving ? 10 : 0;
+    body[8] = controls08 & 4 /* Dehum */ ? this.dehumidifierLevel & 255 : 0;
+    body[9] = this.powerSaving ? 10 : 0;
     body[10] = controls08 & 32 /* WindAndWindBreak */ ? this.windAndWindBreakDirect & 255 : 0;
     body[11] = controls08 & 16 /* Buzzer */ ? 1 : 0;
     const fcc = (0, import_utils.calcFcc)(body);
@@ -325,7 +325,7 @@ class ParsedDeviceState {
   mac = "";
   serial = "";
   rssi = "";
-  app_version = "";
+  appVersion = "";
   constructor() {
     this.general = new GeneralStates();
     this.sensors = new SensorStates();

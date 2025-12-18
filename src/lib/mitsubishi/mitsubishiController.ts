@@ -42,7 +42,7 @@ export class MitsubishiChangeSet {
 	}
 
 	setDehumidifier(humidity: number): void {
-		this.desiredState.dehumSetting = humidity;
+		this.desiredState.dehumidifierLevel = humidity;
 		this.changes08 |= Controls08.Dehum;
 	}
 
@@ -62,7 +62,7 @@ export class MitsubishiChangeSet {
 	}
 
 	setPowerSaving(powerSaving: boolean): void {
-		this.desiredState.isPowerSaving = powerSaving;
+		this.desiredState.powerSaving = powerSaving;
 		this.changes08 |= Controls08.PowerSaving;
 	}
 
@@ -177,7 +177,7 @@ export class MitsubishiController {
 		}
 		const appVer = this.extractTag(rootObj, "APP_VER");
 		if (appVer) {
-			this.parsedDeviceState.app_version = appVer.toString();
+			this.parsedDeviceState.appVersion = appVer.toString();
 		}
 
 		// ---- 4: Extract PROFILECODE values (two possible locations like Python) ----

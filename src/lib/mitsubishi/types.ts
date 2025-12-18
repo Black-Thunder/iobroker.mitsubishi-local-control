@@ -211,8 +211,8 @@ export class GeneralStates {
 	vaneVerticalDirection: VaneVerticalDirection = VaneVerticalDirection.AUTO;
 	remoteLock: RemoteLock = RemoteLock.UNLOCKED;
 	vaneHorizontalDirection: VaneHorizontalDirection = VaneHorizontalDirection.AUTO;
-	dehumSetting: number = 0;
-	isPowerSaving: boolean = false;
+	dehumidifierLevel: number = 0;
+	powerSaving: boolean = false;
 	windAndWindBreakDirect: number = 0;
 	iSeeSensor: boolean = true;
 	wideVaneAdjustment: boolean = false;
@@ -251,8 +251,8 @@ export class GeneralStates {
 		obj.vaneHorizontalDirection = data[15] & 0x0f;
 		obj.wideVaneAdjustment = (data[15] & 0xf0) === 0x80;
 		obj.targetTemperature = data[16] !== 0x00 ? (data[16] - 0x80) / 2 : null;
-		obj.dehumSetting = data[17];
-		obj.isPowerSaving = data[18] > 0;
+		obj.dehumidifierLevel = data[17];
+		obj.powerSaving = data[18] > 0;
 		obj.windAndWindBreakDirect = data[19];
 		return obj;
 	}
@@ -302,8 +302,8 @@ export class GeneralStates {
 		body[3] = 0x10;
 		body[4] = 0x08;
 		body[5] = (controls08 as unknown as number) & 0xff;
-		body[8] = controls08 & Controls08.Dehum ? this.dehumSetting & 0xff : 0;
-		body[9] = this.isPowerSaving ? 0x0a : 0x00;
+		body[8] = controls08 & Controls08.Dehum ? this.dehumidifierLevel & 0xff : 0;
+		body[9] = this.powerSaving ? 0x0a : 0x00;
 		body[10] = controls08 & Controls08.WindAndWindBreak ? this.windAndWindBreakDirect & 0xff : 0;
 		body[11] = controls08 & Controls08.Buzzer ? 0x01 : 0x00;
 		const fcc = calcFcc(body);
@@ -321,7 +321,7 @@ export class ParsedDeviceState {
 	mac: string = "";
 	serial: string = "";
 	rssi: string = "";
-	app_version: string = "";
+	appVersion: string = "";
 
 	constructor() {
 		this.general = new GeneralStates();

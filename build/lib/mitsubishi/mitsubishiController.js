@@ -56,7 +56,7 @@ class MitsubishiChangeSet {
     this.changes |= import_types.Controls.Temperature;
   }
   setDehumidifier(humidity) {
-    this.desiredState.dehumSetting = humidity;
+    this.desiredState.dehumidifierLevel = humidity;
     this.changes08 |= import_types.Controls08.Dehum;
   }
   setFanSpeed(fanSpeed) {
@@ -72,7 +72,7 @@ class MitsubishiChangeSet {
     this.changes |= import_types.Controls.VaneHorizontalDirection;
   }
   setPowerSaving(powerSaving) {
-    this.desiredState.isPowerSaving = powerSaving;
+    this.desiredState.powerSaving = powerSaving;
     this.changes08 |= import_types.Controls08.PowerSaving;
   }
   setRemoteLock(remoteLock) {
@@ -157,7 +157,7 @@ class MitsubishiController {
     }
     const appVer = this.extractTag(rootObj, "APP_VER");
     if (appVer) {
-      this.parsedDeviceState.app_version = appVer.toString();
+      this.parsedDeviceState.appVersion = appVer.toString();
     }
     this.profileCode = [];
     const profiles1 = this.extractTagList(rootObj, ["PROFILECODE", "DATA", "VALUE"]);

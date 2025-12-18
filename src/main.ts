@@ -2,7 +2,7 @@
 // you need to create an adapter
 import * as utils from "@iobroker/adapter-core";
 
-import { getMacFromStateId } from "./lib/mitsubishi/utils";
+import { enumToStates, getMacFromStateId, isEnumValue, isValidIPv4 } from "./lib/mitsubishi/utils";
 
 import { MitsubishiController } from "./lib/mitsubishi/mitsubishiController";
 import type { ParsedDeviceState } from "./lib/mitsubishi/types";
@@ -111,6 +111,8 @@ class MitsubishiLocalControl extends utils.Adapter {
 				try {
 					if (id.endsWith("power")) {
 						await device.controller.setPower(state.val as boolean);
+					} else if (id.endsWith("powerSaving")) {
+						await device.controller.setPowerSaving(state.val as boolean);
 					} else if (id.endsWith("targetTemperature")) {
 						await device.controller.setTemperature(state.val as number);
 					} else if (id.endsWith("operationMode")) {
@@ -123,6 +125,8 @@ class MitsubishiLocalControl extends utils.Adapter {
 						await device.controller.setHorizontalVane(state.val as number);
 					} else if (id.endsWith("remoteLock")) {
 						await device.controller.setRemoteLock(state.val as number);
+					} else if (id.endsWith("dehumidifierLevel")) {
+						await device.controller.setDehumidifier(state.val as number);
 					} else if (id.endsWith("triggerBuzzer")) {
 						await device.controller.triggerBuzzer();
 					} else {
@@ -158,7 +162,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 		}
 
 		// --- Filter invalid devices ---
-		const cleanedDevices = devices.filter(d => d?.name?.trim() && d?.ip?.trim() && this.isValidIPv4(d.ip.trim()));
+		const cleanedDevices = devices.filter(d => d?.name?.trim() && d?.ip?.trim() && isValidIPv4(d.ip.trim()));
 
 		if (cleanedDevices.length !== devices.length) {
 			this.log.warn("Some device entries were invalid and have been removed.");
@@ -171,28 +175,6 @@ class MitsubishiLocalControl extends utils.Adapter {
 		if (this.config.devices.length === 0) {
 			this.log.error("No valid devices configured. Please add at least one device.");
 			return false;
-		}
-
-		return true;
-	}
-
-	private isValidIPv4(ip: string): boolean {
-		// Basic structural check (4 octets, only digits)
-		const parts = ip.split(".");
-		if (parts.length !== 4) {
-			return false;
-		}
-
-		for (const part of parts) {
-			// Reject empty, non-numeric or leading zeros like "01"
-			if (!/^\d{1,3}$/.test(part)) {
-				return false;
-			}
-
-			const num = Number(part);
-			if (num < 0 || num > 255) {
-				return false;
-			}
 		}
 
 		return true;
@@ -266,25 +248,6 @@ class MitsubishiLocalControl extends utils.Adapter {
 		}
 	}
 
-	private enumToStates(enumObj: any): Record<string, string> {
-		const res: Record<string, string> = {};
-		for (const key of Object.keys(enumObj)) {
-			const v = enumObj[key];
-			if (typeof v === "number") {
-				res[v] = this.enumName(enumObj, v) ?? key;
-			}
-		}
-		return res;
-	}
-
-	private isEnumValue(enumObj: any, value: number): boolean {
-		return Object.values(enumObj).includes(value);
-	}
-
-	private enumName(enumObj: any, value: number): string {
-		return enumObj[value] ?? value.toString();
-	}
-
 	/**
 	 * Aktualisiert die ioBroker-Objekte für ein ParsedDeviceState
 	 */
@@ -299,96 +262,87 @@ class MitsubishiLocalControl extends utils.Adapter {
 
 			let type: ioBroker.CommonType = "string";
 			let name = key;
+			let desc: string | undefined = undefined;
 			let role = "state";
 			let unit: string | undefined = undefined;
 			let states: Record<string, string> | undefined;
 			let read = true;
 			let write = false;
+			let min: number | undefined = undefined;
+			let max: number | undefined = undefined;
 
-			// Enum-Mapping
+			//// Map ParsedDeviceState keys to proper states
+			// Map enums
 			switch (key) {
-				case "power":
-					if (typeof value === "boolean") {
-						type = "boolean";
-						role = "switch.power";
-						name = "Power";
-						write = true;
-					}
-					break;
-
 				case "operationMode":
-					if (this.isEnumValue(OperationMode, value)) {
+					if (isEnumValue(OperationMode, value)) {
 						type = "number";
-						states = this.enumToStates(OperationMode);
+						states = enumToStates(OperationMode);
 						role = "level.mode.airconditioner";
 						name = "Operation Mode";
+						desc = "Sets the operation mode of the device";
 						write = true;
 					}
 					break;
 
 				case "fanSpeed":
-					if (this.isEnumValue(FanSpeed, value)) {
+					if (isEnumValue(FanSpeed, value)) {
 						type = "number";
-						states = this.enumToStates(FanSpeed);
+						states = enumToStates(FanSpeed);
 						role = "level.mode.fan";
-						name = "Fan speed (while in manual mode)";
+						name = "Fan speed";
+						desc = "Sets the fan speed when in manual mode";
 						write = true;
 					}
 					break;
 
 				case "vaneVerticalDirection":
-					if (this.isEnumValue(VaneVerticalDirection, value)) {
+					if (isEnumValue(VaneVerticalDirection, value)) {
 						type = "number";
-						states = this.enumToStates(VaneVerticalDirection);
+						states = enumToStates(VaneVerticalDirection);
 						role = "level";
 						name = "Vane vertical direction";
+						desc = "Sets the vertical direction of the vane";
 						write = true;
 					}
 					break;
 
 				case "vaneHorizontalDirection":
-					if (this.isEnumValue(VaneHorizontalDirection, value)) {
+					if (isEnumValue(VaneHorizontalDirection, value)) {
 						type = "number";
-						states = this.enumToStates(VaneHorizontalDirection);
+						states = enumToStates(VaneHorizontalDirection);
 						role = "level";
 						name = "Vane horizontal direction";
+						desc = "Sets the horizontal direction of the vane";
 						write = true;
 					}
 					break;
 
 				case "autoMode":
-					if (this.isEnumValue(AutoMode, value)) {
+					if (isEnumValue(AutoMode, value)) {
 						type = "number";
-						states = this.enumToStates(AutoMode);
+						states = enumToStates(AutoMode);
 						role = "mode";
 						name = "Auto mode";
+						desc = "Current auto mode of the device";
 					}
 					break;
 
 				case "remoteLock":
-					if (this.isEnumValue(RemoteLock, value)) {
+					if (isEnumValue(RemoteLock, value)) {
 						type = "number";
-						states = this.enumToStates(RemoteLock);
+						states = enumToStates(RemoteLock);
 						write = true;
 						name = "Remote lock";
+						desc = "Sets the remote lock state of the device";
 					}
 					break;
-
-				case "triggerBuzzer":
-					if (typeof value === "boolean") {
-						type = "boolean";
-						role = "button";
-						read = false;
-						write = true;
-						name = "Trigger buzzer";
-					}
-					break;
-
+				// Map other types
 				default:
-					// Standardwerte bestimmen
 					if (typeof value === "number") {
 						const keyLower = key.toLowerCase();
 						type = "number";
+						desc = String(key).charAt(0).toUpperCase() + String(key).slice(1);
 
 						if (keyLower.includes("temperature")) {
 							role = "value.temperature";
@@ -397,8 +351,20 @@ class MitsubishiLocalControl extends utils.Adapter {
 							if (keyLower.includes("targettemperature")) {
 								write = true;
 								role = "level.temperature";
-								name = "Traget temperature";
+								name = "Target temperature";
+								desc = "Sets the target temperature of the device";
+								min = 16;
+								max = 31;
+								unit = "°C";
 							}
+						} else if (keyLower.includes("dehumidifierlevel")) {
+							write = true;
+							name = "Dehumidifier level";
+							desc = "Sets the dehumidifier level";
+							unit = "%";
+							min = 0;
+							max = 100;
+							role = "level.humidity";
 						} else if (keyLower.includes("power") || keyLower.includes("energy")) {
 							role = "value.power";
 
@@ -412,8 +378,32 @@ class MitsubishiLocalControl extends utils.Adapter {
 							role = "value";
 						}
 					} else if (typeof value === "boolean") {
+						const keyLower = key.toLowerCase();
 						type = "boolean";
-						role = "indicator";
+
+						if (keyLower.includes("triggerbuzzer")) {
+							role = "button";
+							name = "Trigger buzzer";
+							desc = "Triggers the device buzzer";
+							read = false;
+							write = true;
+						} else if (keyLower === "power") {
+							role = "switch.power";
+							name = "Power";
+							desc = "Turns the device on or off";
+							write = true;
+						} else if (keyLower === "powersaving") {
+							role = "switch";
+							name = "Power saving";
+							desc = "Enables or disables power saving mode";
+							write = true;
+						} else {
+							role = "indicator";
+						}
+					} else if (typeof value === "string") {
+						type = "string";
+						role = "text";
+						desc = String(key).charAt(0).toUpperCase() + String(key).slice(1);
 					}
 			}
 
@@ -424,11 +414,14 @@ class MitsubishiLocalControl extends utils.Adapter {
 				type: "state",
 				common: {
 					name: name,
+					desc: desc,
 					type,
 					role,
 					unit,
 					read: read,
 					write: write,
+					min: min,
+					max: max,
 					...(states ? { states } : {}),
 				},
 				native: {},
@@ -450,6 +443,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 	): Promise<void> {
 		const deviceId = `devices.${parsedState.mac.replace(/:/g, "")}`;
 
+		// Generate device object and common states
 		await adapter.setObjectNotExistsAsync(`${deviceId}`, {
 			type: "device",
 			common: {
@@ -465,6 +459,34 @@ class MitsubishiLocalControl extends utils.Adapter {
 		await adapter.setObjectNotExistsAsync(`${deviceId}.control`, {
 			type: "channel",
 			common: { name: "Device control" },
+			native: {},
+		});
+
+		await adapter.setObjectNotExistsAsync(`${deviceId}.control.enableEchonet`, {
+			type: "state",
+			common: {
+				name: "Enable ECHONET",
+				type: "boolean",
+				role: "button",
+				read: false,
+				write: true,
+				desc: "Send enable ECHONET command",
+				def: false,
+			},
+			native: {},
+		});
+
+		await adapter.setObjectNotExistsAsync(`${deviceId}.control.rebootDevice`, {
+			type: "state",
+			common: {
+				name: "Reboot device",
+				type: "boolean",
+				role: "button",
+				read: false,
+				write: true,
+				desc: "Send reboot device command",
+				def: false,
+			},
 			native: {},
 		});
 
@@ -502,6 +524,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 			native: {},
 		});
 
+		// Generate states from ParsedDeviceState
 		await this.writeRecursive(adapter, deviceId, parsedState);
 
 		// Set error state according to error code
