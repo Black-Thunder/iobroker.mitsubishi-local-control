@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../src/lib/mitsubishi/device.ts"],
+  "sourcesContent": ["import { MitsubishiController } from \"./mitsubishiController\";\r\n\r\ninterface Device {\r\n\tname: string;\r\n\tip: string;\r\n\tmac: string | undefined;\r\n\tcontroller: MitsubishiController;\r\n\tpollingJob?: NodeJS.Timeout;\r\n}\r\n\r\nexport { Device };\r\n"],
+  "mappings": ";;;;;;;;;;;;;;AAAA;AAAA;",
+  "names": []
+}

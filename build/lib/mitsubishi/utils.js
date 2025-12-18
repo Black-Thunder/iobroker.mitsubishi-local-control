@@ -19,11 +19,6 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var utils_exports = {};
 __export(utils_exports, {
   calcFcc: () => calcFcc,
-  enumName: () => enumName,
-  enumToStates: () => enumToStates,
-  getMacFromStateId: () => getMacFromStateId,
-  isEnumValue: () => isEnumValue,
-  isValidIPv4: () => isValidIPv4,
   padIso7816: () => padIso7816,
   unpadIso7816: () => unpadIso7816
 });
@@ -51,56 +46,9 @@ function calcFcc(payload) {
   const sum = slice.reduce((s, b) => s + b, 0);
   return (256 - sum % 256) % 256;
 }
-function getMacFromStateId(id) {
-  const parts = id.split(".");
-  const idx = parts.indexOf("devices");
-  if (idx >= 0 && parts.length > idx + 1) {
-    return parts[idx + 1];
-  }
-  return null;
-}
-function isValidIPv4(ip) {
-  const parts = ip.split(".");
-  if (parts.length !== 4) {
-    return false;
-  }
-  for (const part of parts) {
-    if (!/^\d{1,3}$/.test(part)) {
-      return false;
-    }
-    const num = Number(part);
-    if (num < 0 || num > 255) {
-      return false;
-    }
-  }
-  return true;
-}
-function enumToStates(enumObj) {
-  var _a;
-  const res = {};
-  for (const key of Object.keys(enumObj)) {
-    const v = enumObj[key];
-    if (typeof v === "number") {
-      res[v] = (_a = enumName(enumObj, v)) != null ? _a : key;
-    }
-  }
-  return res;
-}
-function isEnumValue(enumObj, value) {
-  return Object.values(enumObj).includes(value);
-}
-function enumName(enumObj, value) {
-  var _a;
-  return (_a = enumObj[value]) != null ? _a : value.toString();
-}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   calcFcc,
-  enumName,
-  enumToStates,
-  getMacFromStateId,
-  isEnumValue,
-  isValidIPv4,
   padIso7816,
   unpadIso7816
 });

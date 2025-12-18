@@ -2,26 +2,14 @@
 // you need to create an adapter
 import * as utils from "@iobroker/adapter-core";
 
-import { enumToStates, getMacFromStateId, isEnumValue, isValidIPv4 } from "./lib/mitsubishi/utils";
+import { getDeviceByMac, getMacFromStateId, setAdapterConnectionState } from "./lib/iobroker/utils";
 
+import { COMMAND_MAP } from "./lib/iobroker/commands";
+import { validateConfig } from "./lib/iobroker/configValidator";
+import { guessStateConfig, STATE_MAP } from "./lib/iobroker/stateConfig";
+import { Device } from "./lib/mitsubishi/device";
 import { MitsubishiController } from "./lib/mitsubishi/mitsubishiController";
 import type { ParsedDeviceState } from "./lib/mitsubishi/types";
-import {
-	AutoMode,
-	FanSpeed,
-	OperationMode,
-	RemoteLock,
-	VaneHorizontalDirection,
-	VaneVerticalDirection,
-} from "./lib/mitsubishi/types";
-
-interface Device {
-	name: string;
-	ip: string;
-	mac: string | undefined;
-	controller: MitsubishiController;
-	pollingJob?: NodeJS.Timeout;
-}
 
 class MitsubishiLocalControl extends utils.Adapter {
 	private devices: Device[] = [];
@@ -40,9 +28,9 @@ class MitsubishiLocalControl extends utils.Adapter {
 	 * Is called when databases are connected and adapter received configuration.
 	 */
 	private async onReady(): Promise<void> {
-		await this.setAdapterConnectionState(false);
+		await setAdapterConnectionState(this, false);
 
-		if (!this.validateConfig()) {
+		if (!validateConfig(this)) {
 			this.log.error("Invalid configuration detected. Stopping adapter.");
 			return;
 		}
@@ -57,10 +45,10 @@ class MitsubishiLocalControl extends utils.Adapter {
 
 		try {
 			await this.startPolling();
-			await this.setAdapterConnectionState(true);
+			await setAdapterConnectionState(this, true);
 		} catch (err: any) {
 			this.log.error(`Error while starting polling: ${err}`);
-			await this.setAdapterConnectionState(false);
+			await setAdapterConnectionState(this, false);
 		}
 	}
 
@@ -101,7 +89,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 					return;
 				}
 
-				const device = this.getDeviceByMac(mac);
+				const device = getDeviceByMac(this, mac);
 				if (!device) {
 					this.log.error(`No device found for MAC ${mac}`);
 					return;
@@ -109,93 +97,22 @@ class MitsubishiLocalControl extends utils.Adapter {
 				this.log.debug(`Command on ${id} → forwarding to device ${device.name} (${mac})`);
 
 				try {
-					if (id.endsWith("power")) {
-						await device.controller.setPower(state.val as boolean);
-					} else if (id.endsWith("powerSaving")) {
-						await device.controller.setPowerSaving(state.val as boolean);
-					} else if (id.endsWith("targetTemperature")) {
-						await device.controller.setTemperature(state.val as number);
-					} else if (id.endsWith("operationMode")) {
-						await device.controller.setMode(state.val as number);
-					} else if (id.endsWith("fanSpeed")) {
-						await device.controller.setFanSpeed(state.val as number);
-					} else if (id.endsWith("vaneVerticalDirection")) {
-						await device.controller.setVerticalVane(state.val as number);
-					} else if (id.endsWith("vaneHorizontalDirection")) {
-						await device.controller.setHorizontalVane(state.val as number);
-					} else if (id.endsWith("remoteLock")) {
-						await device.controller.setRemoteLock(state.val as number);
-					} else if (id.endsWith("dehumidifierLevel")) {
-						await device.controller.setDehumidifier(state.val as number);
-					} else if (id.endsWith("triggerBuzzer")) {
-						await device.controller.triggerBuzzer();
-					} else {
-						this.log.warn(`Unhandled command for state ${id}`);
+					const commandKey = Object.keys(COMMAND_MAP).find(k => id.endsWith(k));
+					if (!commandKey) {
+						this.log.warn(`Unhandled command for ${id}`);
 						return;
 					}
+
+					await COMMAND_MAP[commandKey](device, state.val);
+					await this.setState(id, state.val, true); // command was confirmed by device, set ACK to true
 				} catch (err: any) {
 					this.log.error(`Error executing command for ${device.name}: ${err}`);
 				}
-
-				await this.setState(id, state.val, true); // command was confirmed by device, set ACK to true
 			}
 		} else {
 			// The object was deleted or the state value has expired
 			this.log.silly(`state ${id} deleted`);
 		}
-	}
-
-	private validateConfig(): boolean {
-		this.log.debug("Checking adapter settings...");
-
-		// --- Validate polling interval ---
-		if (!this.config.pollingInterval || this.config.pollingInterval < 15) {
-			this.config.pollingInterval = 15;
-			this.log.warn("Polling interval can't be set lower than 15 seconds. Now set to 15 seconds.");
-		}
-
-		// --- Validate devices array existence ---
-		const devices = this.config.devices;
-		if (!devices || !Array.isArray(devices)) {
-			this.log.error("No valid devices configured. Please add at least one device.");
-			return false;
-		}
-
-		// --- Filter invalid devices ---
-		const cleanedDevices = devices.filter(d => d?.name?.trim() && d?.ip?.trim() && isValidIPv4(d.ip.trim()));
-
-		if (cleanedDevices.length !== devices.length) {
-			this.log.warn("Some device entries were invalid and have been removed.");
-		}
-
-		// Update config
-		this.config.devices = cleanedDevices;
-
-		// --- Check if at least one valid device remains ---
-		if (this.config.devices.length === 0) {
-			this.log.error("No valid devices configured. Please add at least one device.");
-			return false;
-		}
-
-		return true;
-	}
-
-	private async setAdapterConnectionState(isConnected: boolean): Promise<void> {
-		await this.setStateChangedAsync("info.connection", isConnected, true);
-		this.setForeignState(`system.adapter.${this.namespace}.connected`, isConnected, true);
-	}
-
-	private getDeviceByMac(mac: string): Device | undefined {
-		const noColMac = String(mac)
-			.toLowerCase()
-			.replace(/[^0-9a-f]/g, "");
-		if (noColMac.length !== 12) {
-			return undefined;
-		}
-
-		const colMac = noColMac.match(/.{1,2}/g)!.join(":");
-
-		return this.devices.find(c => c.controller.parsedDeviceState?.mac === colMac);
 	}
 
 	private async startPolling(): Promise<void> {
@@ -214,7 +131,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 					const parsed = await device.controller.fetchStatus();
 					device.mac = parsed.mac;
 
-					await this.updateDeviceStates(this, parsed, device.name);
+					await this.updateDeviceStates(parsed, device.name);
 					await this.setDeviceOnlineState(device.mac, true);
 				} catch (err: any) {
 					this.log.error(`Polling error for ${device.name}: ${err}`);
@@ -249,202 +166,53 @@ class MitsubishiLocalControl extends utils.Adapter {
 	}
 
 	/**
-	 * Aktualisiert die ioBroker-Objekte für ein ParsedDeviceState
+	 * Updates iobroker states recursively based on the provided object.
+	 *
+	 * @param parentId - The parent ID for the states
+	 * @param obj - The object containing states to update
 	 */
-	async writeRecursive(adapter: MitsubishiLocalControl, parentId: string, obj: any): Promise<void> {
+	async writeRecursive(parentId: string, obj: any): Promise<void> {
 		for (const key of Object.keys(obj)) {
 			const value = obj[key];
 
 			if (value && typeof value === "object" && !(value instanceof Date) && !Buffer.isBuffer(value)) {
-				await this.writeRecursive(adapter, parentId, value);
+				await this.writeRecursive(parentId, value);
 				continue;
 			}
 
-			let type: ioBroker.CommonType = "string";
-			let name = key;
-			let desc: string | undefined = undefined;
-			let role = "state";
-			let unit: string | undefined = undefined;
-			let states: Record<string, string> | undefined;
-			let read = true;
-			let write = false;
-			let min: number | undefined = undefined;
-			let max: number | undefined = undefined;
+			const config = STATE_MAP[key]?.(value) ?? guessStateConfig(key, value);
+			const id = `${parentId}.${config.write ? "control" : "info"}.${key}`;
 
-			//// Map ParsedDeviceState keys to proper states
-			// Map enums
-			switch (key) {
-				case "operationMode":
-					if (isEnumValue(OperationMode, value)) {
-						type = "number";
-						states = enumToStates(OperationMode);
-						role = "level.mode.airconditioner";
-						name = "Operation Mode";
-						desc = "Sets the operation mode of the device";
-						write = true;
-					}
-					break;
-
-				case "fanSpeed":
-					if (isEnumValue(FanSpeed, value)) {
-						type = "number";
-						states = enumToStates(FanSpeed);
-						role = "level.mode.fan";
-						name = "Fan speed";
-						desc = "Sets the fan speed when in manual mode";
-						write = true;
-					}
-					break;
-
-				case "vaneVerticalDirection":
-					if (isEnumValue(VaneVerticalDirection, value)) {
-						type = "number";
-						states = enumToStates(VaneVerticalDirection);
-						role = "level";
-						name = "Vane vertical direction";
-						desc = "Sets the vertical direction of the vane";
-						write = true;
-					}
-					break;
-
-				case "vaneHorizontalDirection":
-					if (isEnumValue(VaneHorizontalDirection, value)) {
-						type = "number";
-						states = enumToStates(VaneHorizontalDirection);
-						role = "level";
-						name = "Vane horizontal direction";
-						desc = "Sets the horizontal direction of the vane";
-						write = true;
-					}
-					break;
-
-				case "autoMode":
-					if (isEnumValue(AutoMode, value)) {
-						type = "number";
-						states = enumToStates(AutoMode);
-						role = "mode";
-						name = "Auto mode";
-						desc = "Current auto mode of the device";
-					}
-					break;
-
-				case "remoteLock":
-					if (isEnumValue(RemoteLock, value)) {
-						type = "number";
-						states = enumToStates(RemoteLock);
-						write = true;
-						name = "Remote lock";
-						desc = "Sets the remote lock state of the device";
-					}
-					break;
-				// Map other types
-				default:
-					if (typeof value === "number") {
-						const keyLower = key.toLowerCase();
-						type = "number";
-						desc = String(key).charAt(0).toUpperCase() + String(key).slice(1);
-
-						if (keyLower.includes("temperature")) {
-							role = "value.temperature";
-							unit = "°C";
-
-							if (keyLower.includes("targettemperature")) {
-								write = true;
-								role = "level.temperature";
-								name = "Target temperature";
-								desc = "Sets the target temperature of the device";
-								min = 16;
-								max = 31;
-								unit = "°C";
-							}
-						} else if (keyLower.includes("dehumidifierlevel")) {
-							write = true;
-							name = "Dehumidifier level";
-							desc = "Sets the dehumidifier level";
-							unit = "%";
-							min = 0;
-							max = 100;
-							role = "level.humidity";
-						} else if (keyLower.includes("power") || keyLower.includes("energy")) {
-							role = "value.power";
-
-							if (keyLower.includes("energy")) {
-								unit = "kWh";
-							}
-						} else if (keyLower.includes("errorcode")) {
-							states = { 32768: "No error" };
-							role = "value";
-						} else {
-							role = "value";
-						}
-					} else if (typeof value === "boolean") {
-						const keyLower = key.toLowerCase();
-						type = "boolean";
-
-						if (keyLower.includes("triggerbuzzer")) {
-							role = "button";
-							name = "Trigger buzzer";
-							desc = "Triggers the device buzzer";
-							read = false;
-							write = true;
-						} else if (keyLower === "power") {
-							role = "switch.power";
-							name = "Power";
-							desc = "Turns the device on or off";
-							write = true;
-						} else if (keyLower === "powersaving") {
-							role = "switch";
-							name = "Power saving";
-							desc = "Enables or disables power saving mode";
-							write = true;
-						} else {
-							role = "indicator";
-						}
-					} else if (typeof value === "string") {
-						type = "string";
-						role = "text";
-						desc = String(key).charAt(0).toUpperCase() + String(key).slice(1);
-					}
-			}
-
-			// State Objekt erstellen
-			const id = write ? `${parentId}.control.${key}` : `${parentId}.info.${key}`;
-
-			await adapter.setObjectNotExistsAsync(id, {
+			await this.setObjectNotExistsAsync(id, {
 				type: "state",
 				common: {
-					name: name,
-					desc: desc,
-					type,
-					role,
-					unit,
-					read: read,
-					write: write,
-					min: min,
-					max: max,
-					...(states ? { states } : {}),
+					name: config.name ?? key,
+					desc: config.desc,
+					type: config.type,
+					role: config.role,
+					unit: config.unit,
+					read: config.read ?? true,
+					write: config.write ?? false,
+					min: config.min,
+					max: config.max,
+					...(config.states ? { states: config.states } : {}),
 				},
 				native: {},
 			});
 
-			if (write) {
+			if (config.write) {
 				this.subscribeStates(id);
 			}
 
-			// State setzen
-			await adapter.setState(id, { val: value, ack: true });
+			await this.setState(id, { val: value, ack: true });
 		}
 	}
 
-	async updateDeviceStates(
-		adapter: MitsubishiLocalControl,
-		parsedState: ParsedDeviceState,
-		deviceName: string,
-	): Promise<void> {
+	async updateDeviceStates(parsedState: ParsedDeviceState, deviceName: string): Promise<void> {
 		const deviceId = `devices.${parsedState.mac.replace(/:/g, "")}`;
 
 		// Generate device object and common states
-		await adapter.setObjectNotExistsAsync(`${deviceId}`, {
+		await this.setObjectNotExistsAsync(`${deviceId}`, {
 			type: "device",
 			common: {
 				statusStates: {
@@ -456,13 +224,13 @@ class MitsubishiLocalControl extends utils.Adapter {
 			native: {},
 		});
 
-		await adapter.setObjectNotExistsAsync(`${deviceId}.control`, {
+		await this.setObjectNotExistsAsync(`${deviceId}.control`, {
 			type: "channel",
 			common: { name: "Device control" },
 			native: {},
 		});
 
-		await adapter.setObjectNotExistsAsync(`${deviceId}.control.enableEchonet`, {
+		await this.setObjectNotExistsAsync(`${deviceId}.control.enableEchonet`, {
 			type: "state",
 			common: {
 				name: "Enable ECHONET",
@@ -476,7 +244,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 			native: {},
 		});
 
-		await adapter.setObjectNotExistsAsync(`${deviceId}.control.rebootDevice`, {
+		await this.setObjectNotExistsAsync(`${deviceId}.control.rebootDevice`, {
 			type: "state",
 			common: {
 				name: "Reboot device",
@@ -490,13 +258,13 @@ class MitsubishiLocalControl extends utils.Adapter {
 			native: {},
 		});
 
-		await adapter.setObjectNotExistsAsync(`${deviceId}.info`, {
+		await this.setObjectNotExistsAsync(`${deviceId}.info`, {
 			type: "channel",
 			common: { name: "Device information" },
 			native: {},
 		});
 
-		await adapter.setObjectNotExistsAsync(`${deviceId}.info.deviceOnline`, {
+		await this.setObjectNotExistsAsync(`${deviceId}.info.deviceOnline`, {
 			type: "state",
 			common: {
 				name: "Is device online",
@@ -510,7 +278,7 @@ class MitsubishiLocalControl extends utils.Adapter {
 			native: {},
 		});
 
-		await adapter.setObjectNotExistsAsync(`${deviceId}.info.hasError`, {
+		await this.setObjectNotExistsAsync(`${deviceId}.info.hasError`, {
 			type: "state",
 			common: {
 				name: "Has device an error",
@@ -525,10 +293,10 @@ class MitsubishiLocalControl extends utils.Adapter {
 		});
 
 		// Generate states from ParsedDeviceState
-		await this.writeRecursive(adapter, deviceId, parsedState);
+		await this.writeRecursive(deviceId, parsedState);
 
 		// Set error state according to error code
-		await adapter.setState(`${deviceId}.info.hasError`, { val: parsedState.errors?.isAbnormalState, ack: true });
+		await this.setState(`${deviceId}.info.hasError`, { val: parsedState.errors?.isAbnormalState, ack: true });
 	}
 }
 
