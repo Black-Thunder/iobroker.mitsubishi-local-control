@@ -1,5 +1,5 @@
-import { Device } from "../mitsubishi/device";
-import { ParsedDeviceState } from "../mitsubishi/types";
+import type { Device } from "../mitsubishi/device";
+import type { ParsedDeviceState } from "../mitsubishi/types";
 
 type CommandHandler = (_device: Device, _value: any) => Promise<ParsedDeviceState | undefined>;
 

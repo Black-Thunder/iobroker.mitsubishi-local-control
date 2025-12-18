@@ -7,7 +7,7 @@ import { getDeviceByMac, getMacFromStateId, setAdapterConnectionState } from "./
 import { COMMAND_MAP } from "./lib/iobroker/commands";
 import { validateConfig } from "./lib/iobroker/configValidator";
 import { guessStateConfig, STATE_MAP } from "./lib/iobroker/stateConfig";
-import { Device } from "./lib/mitsubishi/device";
+import type { Device } from "./lib/mitsubishi/device";
 import { MitsubishiController } from "./lib/mitsubishi/mitsubishiController";
 import type { ParsedDeviceState } from "./lib/mitsubishi/types";
 

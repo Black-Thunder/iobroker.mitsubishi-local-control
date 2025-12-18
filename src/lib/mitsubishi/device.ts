@@ -1,4 +1,4 @@
-import { MitsubishiController } from "./mitsubishiController";
+import type { MitsubishiController } from "./mitsubishiController";
 
 interface Device {
 	name: string;
@@ -8,4 +8,4 @@ interface Device {
 	pollingJob?: NodeJS.Timeout;
 }
 
-export { Device };
+export type { Device };

@@ -1,4 +1,4 @@
-import { Device } from "../mitsubishi/device";
+import type { Device } from "../mitsubishi/device";
 
 export function getMacFromStateId(id: string): string | null {
 	const parts = id.split(".");
