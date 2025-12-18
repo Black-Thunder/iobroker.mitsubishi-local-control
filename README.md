@@ -9,7 +9,7 @@
 
 [![NPM](https://nodei.co/npm/iobroker.mitsubishi-local-control.png?downloads=true)](https://nodei.co/npm/iobroker.mitsubishi-local-control/)
 
-**Tests:** ![Test and Release](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/workflows/Test%20and%20Release/badge.svg)
+[![Test and Release](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/actions/workflows/test-and-release.yml/badge.svg)](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/actions/workflows/test-and-release.yml) [![Reviewdog](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/actions/workflows/code-quality.yml/badge.svg)](https://github.com/Black-Thunder/ioBroker.mitsubishi-local-control/actions/workflows/code-quality.yml) [![Known Vulnerabilities](https://snyk.io/test/github/Black-Thunder/ioBroker.mitsubishi-local-control/badge.svg)](https://snyk.io/test/github/Black-Thunder/ioBroker.mitsubishi-local-control)
 
 ## mitsubishi-local-control adapter for ioBroker
 
