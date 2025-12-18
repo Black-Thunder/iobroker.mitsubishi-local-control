@@ -46,7 +46,7 @@ The device ID is derived from the device MAC address.
 
 #### `...info`
 
-| State                    | Type    | Description |
+| State                    | Type    | Description |                                        |
 | ------------------------ | ------- | ----------- | -------------------------------------- |
 | appVersion               | string  | ✔           | App version                            |
 | autoMode                 | number  | ✔           | Current auto mode of the device        |

@@ -46,7 +46,7 @@ Die Geräte-ID wird aus der MAC-Adresse des Geräts abgeleitet.
 
 #### `...info`
 
-| State                    | Typ     | Beschreibung |
+| State                    | Typ     | Beschreibung |                                         |
 | ------------------------ | ------- | ------------ | --------------------------------------- |
 | appVersion               | string  | ✔            | App-Version                             |
 | autoMode                 | number  | ✔            | Aktueller Automatikmodus des Geräts     |
