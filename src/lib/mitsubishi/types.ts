@@ -5,11 +5,11 @@ export const STATIC_KEY = Buffer.from("unregistered\0\0\0\0", "utf8");
 
 /* eslint-disable no-unused-vars */
 export enum OperationMode {
+	AUTO = 0,
 	HEAT = 1,
 	DRY = 2,
 	COOL = 3,
 	VENT = 7,
-	AUTO = 8,
 }
 
 export enum FanSpeed {

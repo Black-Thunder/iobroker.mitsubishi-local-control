@@ -40,11 +40,11 @@ var import_utils = require("./utils");
 const KEY_SIZE = 16;
 const STATIC_KEY = Buffer.from("unregistered\0\0\0\0", "utf8");
 var OperationMode = /* @__PURE__ */ ((OperationMode2) => {
+  OperationMode2[OperationMode2["AUTO"] = 0] = "AUTO";
   OperationMode2[OperationMode2["HEAT"] = 1] = "HEAT";
   OperationMode2[OperationMode2["DRY"] = 2] = "DRY";
   OperationMode2[OperationMode2["COOL"] = 3] = "COOL";
   OperationMode2[OperationMode2["VENT"] = 7] = "VENT";
-  OperationMode2[OperationMode2["AUTO"] = 8] = "AUTO";
   return OperationMode2;
 })(OperationMode || {});
 var FanSpeed = /* @__PURE__ */ ((FanSpeed2) => {
@@ -218,7 +218,7 @@ class AutoStates {
 }
 class GeneralStates {
   power = false;
-  operationMode = 8 /* AUTO */;
+  operationMode = 0 /* AUTO */;
   coarseTemperature = 22;
   targetTemperature = 22;
   fanSpeed = 0 /* AUTO */;

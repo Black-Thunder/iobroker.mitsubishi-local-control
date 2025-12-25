@@ -18,7 +18,6 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var mitsubishiController_exports = {};
 __export(mitsubishiController_exports, {
-  MitsubishiChangeSet: () => MitsubishiChangeSet,
   MitsubishiController: () => MitsubishiController
 });
 module.exports = __toCommonJS(mitsubishiController_exports);
@@ -26,64 +25,12 @@ var import_async_mutex = require("async-mutex");
 var import_buffer = require("buffer");
 var import_fast_xml_parser = require("fast-xml-parser");
 var import_mitsubishiApi = require("./mitsubishiApi");
+var import_mitsubishiChangeset = require("./mitsubishiChangeset");
 var import_types = require("./types");
 const xmlParser = new import_fast_xml_parser.XMLParser({
   ignoreAttributes: false,
   trimValues: true
 });
-class MitsubishiChangeSet {
-  desiredState;
-  changes;
-  changes08;
-  constructor(currentState) {
-    this.desiredState = new import_types.GeneralStates(currentState);
-    this.changes = import_types.Controls.NoControl;
-    this.changes08 = import_types.Controls08.NoControl;
-  }
-  get empty() {
-    return this.changes === import_types.Controls.NoControl && this.changes08 === import_types.Controls08.NoControl;
-  }
-  setPower(power) {
-    this.desiredState.power = power;
-    this.changes |= import_types.Controls.Power;
-  }
-  setMode(operationMode) {
-    this.desiredState.operationMode = operationMode;
-    this.changes |= import_types.Controls.OperationMode;
-  }
-  setTemperature(temperature) {
-    this.desiredState.temperature = temperature;
-    this.changes |= import_types.Controls.Temperature;
-  }
-  setDehumidifier(humidity) {
-    this.desiredState.dehumidifierLevel = humidity;
-    this.changes08 |= import_types.Controls08.Dehum;
-  }
-  setFanSpeed(fanSpeed) {
-    this.desiredState.fanSpeed = fanSpeed;
-    this.changes |= import_types.Controls.FanSpeed;
-  }
-  setVerticalVane(vVane) {
-    this.desiredState.vaneVerticalDirection = vVane;
-    this.changes |= import_types.Controls.VaneVerticalDirection;
-  }
-  setHorizontalVane(hVane) {
-    this.desiredState.vaneHorizontalDirection = hVane;
-    this.changes |= import_types.Controls.VaneHorizontalDirection;
-  }
-  setPowerSaving(powerSaving) {
-    this.desiredState.powerSaving = powerSaving;
-    this.changes08 |= import_types.Controls08.PowerSaving;
-  }
-  setRemoteLock(remoteLock) {
-    this.desiredState.remoteLock = remoteLock;
-    this.changes |= import_types.Controls.RemoteLock;
-  }
-  triggerBuzzer() {
-    this.desiredState.triggerBuzzer = true;
-    this.changes08 |= import_types.Controls08.Buzzer;
-  }
-}
 class MitsubishiController {
   parsedDeviceState = null;
   isCommandInProgress = false;
@@ -93,6 +40,9 @@ class MitsubishiController {
   commandQueue = [];
   isProcessingQueue = false;
   profileCode = [];
+  pendingChangeset = null;
+  pendingTimer = null;
+  coalesceDelayMs = 200;
   static waitTimeAfterCommand = 6e3;
   constructor(api, log) {
     this.api = api;
@@ -239,27 +189,49 @@ class MitsubishiController {
   async getChangeset() {
     var _a, _b;
     await this.ensureDeviceState();
-    return new MitsubishiChangeSet((_b = (_a = this.parsedDeviceState) == null ? void 0 : _a.general) != null ? _b : new import_types.GeneralStates());
+    return new import_mitsubishiChangeset.MitsubishiChangeSet((_b = (_a = this.parsedDeviceState) == null ? void 0 : _a.general) != null ? _b : new import_types.GeneralStates());
   }
   async applyChangeset(changeset) {
-    try {
-      return await new Promise(() => {
-        this.commandQueue.push(async () => {
+    await this.ensureDeviceState();
+    if (!this.pendingChangeset) {
+      this.pendingChangeset = changeset;
+    } else {
+      this.pendingChangeset.merge(changeset);
+    }
+    if (this.pendingTimer) {
+      clearTimeout(this.pendingTimer);
+    }
+    return new Promise((resolve, reject) => {
+      this.pendingTimer = setTimeout(() => {
+        this.flushPendingChangeset().then(resolve).catch(reject);
+      }, this.coalesceDelayMs);
+    });
+  }
+  async flushPendingChangeset() {
+    const changeset = this.pendingChangeset;
+    this.pendingChangeset = null;
+    this.pendingTimer = null;
+    if (!changeset || changeset.empty) {
+      return;
+    }
+    return new Promise((resolve, reject) => {
+      this.commandQueue.push(async () => {
+        try {
           let newState;
           if (changeset.changes !== import_types.Controls.NoControl) {
             newState = await this.sendGeneralCommand(changeset.desiredState, changeset.changes);
           } else if (changeset.changes08 !== import_types.Controls08.NoControl) {
             newState = await this.sendExtend08Command(changeset.desiredState, changeset.changes08);
           }
-          if (newState) {
-            return newState;
-          }
-          throw new Error("Device did not apply the command");
-        });
-        void this.processCommandQueue();
+          resolve(newState);
+          return newState;
+        } catch (err) {
+          this.log.warn(`Failed to send coalesced command: ${err.message}`);
+          reject(err);
+        }
       });
-    } catch {
-    }
+      void this.processCommandQueue();
+    });
   }
   async processCommandQueue() {
     if (this.isProcessingQueue || this.commandQueue.length === 0) {
@@ -272,7 +244,8 @@ class MitsubishiController {
         if (nextCommand) {
           try {
             await nextCommand();
-          } catch {
+          } catch (error) {
+            this.log.warn(`Command in queue failed: ${error.message}`);
           }
           await new Promise((r) => setTimeout(r, 500));
         }
@@ -280,60 +253,6 @@ class MitsubishiController {
     } finally {
       this.isProcessingQueue = false;
     }
-  }
-  verifyCommandAccepted(changeset, newState) {
-    if (!newState.general) {
-      return false;
-    }
-    if (changeset.changes & import_types.Controls.Power) {
-      if (newState.general.power !== changeset.desiredState.power) {
-        this.log.warn(
-          `Power command not accepted by device. Desired: ${changeset.desiredState.power}, Got: ${newState.general.power}`
-        );
-        return false;
-      }
-    }
-    if (changeset.changes & import_types.Controls.Temperature) {
-      if (Math.abs(newState.general.temperature - changeset.desiredState.temperature) > 0.5) {
-        this.log.warn(
-          `Temperature command not accepted by device. Desired: ${changeset.desiredState.temperature}, Got: ${newState.general.temperature}`
-        );
-        return false;
-      }
-    }
-    if (changeset.changes & import_types.Controls.OperationMode) {
-      if (newState.general.operationMode !== changeset.desiredState.operationMode) {
-        this.log.warn(
-          `Mode command not accepted by device. Desired: ${changeset.desiredState.operationMode}, Got: ${newState.general.operationMode}`
-        );
-        return false;
-      }
-    }
-    if (changeset.changes & import_types.Controls.FanSpeed) {
-      if (newState.general.fanSpeed !== changeset.desiredState.fanSpeed) {
-        this.log.warn(
-          `Fan speed command not accepted by device. Desired: ${changeset.desiredState.fanSpeed}, Got: ${newState.general.fanSpeed}`
-        );
-        return false;
-      }
-    }
-    if (changeset.changes & import_types.Controls.VaneHorizontalDirection) {
-      if (newState.general.vaneHorizontalDirection !== changeset.desiredState.vaneHorizontalDirection) {
-        this.log.warn(
-          `Vane horizontal direction command not accepted by device. Desired: ${changeset.desiredState.vaneHorizontalDirection}, Got: ${newState.general.vaneHorizontalDirection}`
-        );
-        return false;
-      }
-    }
-    if (changeset.changes & import_types.Controls.VaneVerticalDirection) {
-      if (newState.general.vaneVerticalDirection !== changeset.desiredState.vaneVerticalDirection) {
-        this.log.warn(
-          `Vane vertical direction command not accepted by device. Desired: ${changeset.desiredState.vaneVerticalDirection}, Got: ${newState.general.vaneVerticalDirection}`
-        );
-        return false;
-      }
-    }
-    return true;
   }
   async setPower(on) {
     const changeset = await this.getChangeset();
@@ -345,9 +264,9 @@ class MitsubishiController {
     changeset.setTemperature(tempC);
     return this.applyChangeset(changeset);
   }
-  async setMode(mode) {
+  async setOperationMode(mode) {
     const changeset = await this.getChangeset();
-    changeset.setMode(mode);
+    changeset.setOperationMode(mode);
     return this.applyChangeset(changeset);
   }
   async setFanSpeed(speed) {
@@ -407,7 +326,6 @@ class MitsubishiController {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  MitsubishiChangeSet,
   MitsubishiController
 });
 //# sourceMappingURL=mitsubishiController.js.map

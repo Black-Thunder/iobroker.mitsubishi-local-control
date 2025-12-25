@@ -3,6 +3,7 @@ import { Buffer } from "buffer";
 import { XMLParser } from "fast-xml-parser";
 
 import { MitsubishiAPI } from "./mitsubishiApi";
+import { MitsubishiChangeSet } from "./mitsubishiChangeset";
 import type { FanSpeed, OperationMode, RemoteLock, VaneHorizontalDirection, VaneVerticalDirection } from "./types";
 import { Controls, Controls08, GeneralStates, ParsedDeviceState } from "./types";
 
@@ -10,72 +11,6 @@ const xmlParser = new XMLParser({
 	ignoreAttributes: false,
 	trimValues: true,
 });
-
-export class MitsubishiChangeSet {
-	public desiredState: GeneralStates;
-	public changes: Controls;
-	public changes08: Controls08;
-
-	constructor(currentState: GeneralStates) {
-		this.desiredState = new GeneralStates(currentState);
-		this.changes = Controls.NoControl;
-		this.changes08 = Controls08.NoControl;
-	}
-
-	get empty(): boolean {
-		return this.changes === Controls.NoControl && this.changes08 === Controls08.NoControl;
-	}
-
-	setPower(power: boolean): void {
-		this.desiredState.power = power;
-		this.changes |= Controls.Power;
-	}
-
-	setMode(operationMode: OperationMode): void {
-		this.desiredState.operationMode = operationMode as number;
-		this.changes |= Controls.OperationMode;
-	}
-
-	setTemperature(temperature: number): void {
-		this.desiredState.temperature = temperature;
-		this.changes |= Controls.Temperature;
-	}
-
-	setDehumidifier(humidity: number): void {
-		this.desiredState.dehumidifierLevel = humidity;
-		this.changes08 |= Controls08.Dehum;
-	}
-
-	setFanSpeed(fanSpeed: FanSpeed): void {
-		this.desiredState.fanSpeed = fanSpeed;
-		this.changes |= Controls.FanSpeed;
-	}
-
-	setVerticalVane(vVane: VaneVerticalDirection): void {
-		this.desiredState.vaneVerticalDirection = vVane;
-		this.changes |= Controls.VaneVerticalDirection;
-	}
-
-	setHorizontalVane(hVane: VaneHorizontalDirection): void {
-		this.desiredState.vaneHorizontalDirection = hVane;
-		this.changes |= Controls.VaneHorizontalDirection;
-	}
-
-	setPowerSaving(powerSaving: boolean): void {
-		this.desiredState.powerSaving = powerSaving;
-		this.changes08 |= Controls08.PowerSaving;
-	}
-
-	setRemoteLock(remoteLock: RemoteLock): void {
-		this.desiredState.remoteLock = remoteLock;
-		this.changes |= Controls.RemoteLock;
-	}
-
-	triggerBuzzer(): void {
-		this.desiredState.triggerBuzzer = true;
-		this.changes08 |= Controls08.Buzzer;
-	}
-}
 
 /**
  * Controller that uses MitsubishiAPI to fetch status and apply controls
@@ -87,9 +22,12 @@ export class MitsubishiController {
 	private log: ioBroker.Logger;
 	private api: MitsubishiAPI;
 	private readonly mutex = new Mutex();
-	private readonly commandQueue: Array<() => Promise<ParsedDeviceState>> = [];
+	private readonly commandQueue: Array<() => Promise<ParsedDeviceState | undefined>> = [];
 	private isProcessingQueue = false;
 	private profileCode: Buffer[] = [];
+	private pendingChangeset: MitsubishiChangeSet | null = null;
+	private pendingTimer: NodeJS.Timeout | null = null;
+	private readonly coalesceDelayMs = 200;
 
 	static waitTimeAfterCommand = 6000;
 
@@ -290,11 +228,39 @@ export class MitsubishiController {
 	}
 
 	private async applyChangeset(changeset: MitsubishiChangeSet): Promise<ParsedDeviceState | undefined> {
-		try {
-			// Add command to queue and return a promise that resolves when done
-			return await new Promise((/*resolve, reject*/) => {
-				this.commandQueue.push(async () => {
-					//try {
+		await this.ensureDeviceState();
+
+		// Create or merge pending changeset
+		if (!this.pendingChangeset) {
+			this.pendingChangeset = changeset;
+		} else {
+			this.pendingChangeset.merge(changeset);
+		}
+
+		// Reset debounce timer
+		if (this.pendingTimer) {
+			clearTimeout(this.pendingTimer);
+		}
+
+		return new Promise((resolve, reject) => {
+			this.pendingTimer = setTimeout(() => {
+				this.flushPendingChangeset().then(resolve).catch(reject);
+			}, this.coalesceDelayMs);
+		});
+	}
+
+	private async flushPendingChangeset(): Promise<ParsedDeviceState | undefined> {
+		const changeset = this.pendingChangeset;
+		this.pendingChangeset = null;
+		this.pendingTimer = null;
+
+		if (!changeset || changeset.empty) {
+			return;
+		}
+
+		return new Promise((resolve, reject) => {
+			this.commandQueue.push(async () => {
+				try {
 					let newState: ParsedDeviceState | undefined;
 
 					if (changeset.changes !== Controls.NoControl) {
@@ -303,25 +269,16 @@ export class MitsubishiController {
 						newState = await this.sendExtend08Command(changeset.desiredState, changeset.changes08);
 					}
 
-					// Verify that the command was accepted
-					if (newState /*&& this.verifyCommandAccepted(changeset, newState)*/) {
-						//resolve(newState);
-						return newState;
-					}
-					throw new Error("Device did not apply the command");
-					//} catch (error) {
-					//reject(error);
-					//	throw error;
-					//}
-				});
-
-				// Start processing the command queue if not already running
-				void this.processCommandQueue();
+					resolve(newState);
+					return newState;
+				} catch (err) {
+					this.log.warn(`Failed to send coalesced command: ${(err as Error).message}`);
+					reject(err);
+				}
 			});
-		} catch {
-			//this.log.error(`Failed to apply changeset: ${(error as Error).message}`);
-			//throw error;
-		}
+
+			void this.processCommandQueue();
+		});
 	}
 
 	private async processCommandQueue(): Promise<void> {
@@ -337,10 +294,9 @@ export class MitsubishiController {
 				if (nextCommand) {
 					try {
 						await nextCommand();
-					} catch {
+					} catch (error) {
 						// error was already in reject() handled
-						// Here only log, not rethrow
-						//this.log.warn(`Command in queue failed: ${(error as Error).message}`);
+						this.log.warn(`Command in queue failed: ${(error as Error).message}`);
 					}
 					// Wait after each command to prevent polling conflicts
 					await new Promise(r => setTimeout(r, 500));
@@ -349,69 +305,6 @@ export class MitsubishiController {
 		} finally {
 			this.isProcessingQueue = false;
 		}
-	}
-
-	private verifyCommandAccepted(changeset: MitsubishiChangeSet, newState: ParsedDeviceState): boolean {
-		if (!newState.general) {
-			return false;
-		}
-
-		// Verify based on what was changed
-		if (changeset.changes & Controls.Power) {
-			if (newState.general.power !== changeset.desiredState.power) {
-				this.log.warn(
-					`Power command not accepted by device. Desired: ${changeset.desiredState.power}, Got: ${newState.general.power}`,
-				);
-				return false;
-			}
-		}
-
-		if (changeset.changes & Controls.Temperature) {
-			if (Math.abs(newState.general.temperature - changeset.desiredState.temperature) > 0.5) {
-				this.log.warn(
-					`Temperature command not accepted by device. Desired: ${changeset.desiredState.temperature}, Got: ${newState.general.temperature}`,
-				);
-				return false;
-			}
-		}
-
-		if (changeset.changes & Controls.OperationMode) {
-			if (newState.general.operationMode !== changeset.desiredState.operationMode) {
-				this.log.warn(
-					`Mode command not accepted by device. Desired: ${changeset.desiredState.operationMode}, Got: ${newState.general.operationMode}`,
-				);
-				return false;
-			}
-		}
-
-		if (changeset.changes & Controls.FanSpeed) {
-			if (newState.general.fanSpeed !== changeset.desiredState.fanSpeed) {
-				this.log.warn(
-					`Fan speed command not accepted by device. Desired: ${changeset.desiredState.fanSpeed}, Got: ${newState.general.fanSpeed}`,
-				);
-				return false;
-			}
-		}
-
-		if (changeset.changes & Controls.VaneHorizontalDirection) {
-			if (newState.general.vaneHorizontalDirection !== changeset.desiredState.vaneHorizontalDirection) {
-				this.log.warn(
-					`Vane horizontal direction command not accepted by device. Desired: ${changeset.desiredState.vaneHorizontalDirection}, Got: ${newState.general.vaneHorizontalDirection}`,
-				);
-				return false;
-			}
-		}
-
-		if (changeset.changes & Controls.VaneVerticalDirection) {
-			if (newState.general.vaneVerticalDirection !== changeset.desiredState.vaneVerticalDirection) {
-				this.log.warn(
-					`Vane vertical direction command not accepted by device. Desired: ${changeset.desiredState.vaneVerticalDirection}, Got: ${newState.general.vaneVerticalDirection}`,
-				);
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	async setPower(on: boolean): Promise<ParsedDeviceState | undefined> {
@@ -426,9 +319,9 @@ export class MitsubishiController {
 		return this.applyChangeset(changeset);
 	}
 
-	async setMode(mode: OperationMode): Promise<ParsedDeviceState | undefined> {
+	async setOperationMode(mode: OperationMode): Promise<ParsedDeviceState | undefined> {
 		const changeset = await this.getChangeset();
-		changeset.setMode(mode);
+		changeset.setOperationMode(mode);
 		return this.applyChangeset(changeset);
 	}
 
