@@ -123,7 +123,7 @@ class MitsubishiLocalControl extends utils.Adapter {
           return;
         }
         try {
-          this.log.debug(`Polling ${device.name} (${device.ip}) ...`);
+          this.log.debug(`Polling ${device.name} (${device.ip})...`);
           const parsed = await device.controller.fetchStatus();
           device.mac = parsed.mac;
           await this.updateDeviceStates(parsed, device.name);
@@ -195,7 +195,8 @@ class MitsubishiLocalControl extends utils.Adapter {
   }
   async updateDeviceStates(parsedState, deviceName) {
     var _a;
-    const deviceId = `devices.${parsedState.mac.replace(/:/g, "")}`;
+    const parsedMac = parsedState.mac.replace(/:/g, "").replace(this.FORBIDDEN_CHARS, "_");
+    const deviceId = `devices.${parsedMac}`;
     await this.setObjectNotExistsAsync(`${deviceId}`, {
       type: "device",
       common: {
