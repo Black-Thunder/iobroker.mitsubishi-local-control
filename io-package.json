@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "mitsubishi-local-control",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "news": {
+      "1.0.3": {
+        "en": "Cleaned up some code",
+        "de": "Code bereinigt",
+        "ru": "Очистить код",
+        "pt": "Limpar algum código",
+        "nl": "Wat code opgeruimd",
+        "fr": "Nettoyer un code",
+        "it": "Pulito un codice",
+        "es": "Limpio un código",
+        "pl": "Oczyściłem jakiś kod",
+        "uk": "Чистий код",
+        "zh-cn": "清理了密码"
+      },
       "1.0.2": {
         "en": "Implemented command coalescing and mapped AUTO mode correctly",
         "de": "Ergänzte Kommando-Koalescing und kartiert AUTO-Modus korrekt",
