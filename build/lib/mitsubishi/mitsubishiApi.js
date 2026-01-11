@@ -32,7 +32,7 @@ __export(mitsubishiApi_exports, {
 });
 module.exports = __toCommonJS(mitsubishiApi_exports);
 var import_axios = __toESM(require("axios"));
-var crypto = __toESM(require("crypto"));
+var crypto = __toESM(require("node:crypto"));
 var import_types = require("./types");
 var import_utils = require("./utils");
 class MitsubishiAPI {

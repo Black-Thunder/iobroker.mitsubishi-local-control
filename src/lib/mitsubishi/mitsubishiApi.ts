@@ -1,7 +1,7 @@
 // src/mitsubishi/mitsubishiApi.ts
 import type { AxiosInstance } from "axios";
 import axios from "axios";
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 import { KEY_SIZE, STATIC_KEY } from "./types";
 import { padIso7816, unpadIso7816 } from "./utils";
 
