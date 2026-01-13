@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "mitsubishi-local-control",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "news": {
+      "1.0.5": {
+        "en": "Creation of adapter objects was fixed",
+        "de": "Erstellung von Adapterobjekten wurde korrigiert",
+        "ru": "Зафиксировано создание объектов адаптера",
+        "pt": "A criação de objetos adaptadores foi fixada",
+        "nl": "Aanmaken van adapterobjecten werd vastgesteld",
+        "fr": "La création d'objets d'adaptateur a été fixée",
+        "it": "Creazione di oggetti adattatori è stata fissata",
+        "es": "Creación de objetos adaptadores se fijó",
+        "pl": "Tworzenie obiektów adaptera zostało naprawione",
+        "uk": "Створення об'єктів адаптера",
+        "zh-cn": "设定适配对象已固定"
+      },
       "1.0.4": {
         "en": "Dependencies were updated",
         "de": "Abhängigkeiten wurden aktualisiert",
